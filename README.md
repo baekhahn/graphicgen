@@ -17,12 +17,23 @@ Use one of these two flows:
      - `python3 -m http.server 8000`
    - Open forwarded port `8000` preview.
 
+## One-command Sync
+
+From any machine (home/office), run:
+
+```bash
+./scripts/sync.sh
+```
+
+This does `fetch` + `pull --ff-only` on your current branch and prints the latest commit and status.
+
 ## Files
 
 - App: `dithering-effect.html`
 - Container: `Dockerfile`
 - Fly config: `fly.toml`
 - Codespaces config: `.devcontainer/devcontainer.json`
+- Sync script: `scripts/sync.sh`
 
 ## Deploy
 
