@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-COPY dithering-effect.html /usr/share/nginx/html/index.html
+COPY pixelation-tool.html /usr/share/nginx/html/index.html
 
 EXPOSE 80
 

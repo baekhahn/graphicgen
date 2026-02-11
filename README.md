@@ -1,6 +1,6 @@
 # graphicgen
 
-Single-file dithering playground (`dithering-effect.html`) with Fly.io deployment.
+Single-file pixelation playground (`pixelation-tool.html`) with Fly.io deployment.
 
 ## Continue Work Anywhere (Home/Office)
 
@@ -29,7 +29,7 @@ This does `fetch` + `pull --ff-only` on your current branch and prints the lates
 
 ## Files
 
-- App: `dithering-effect.html`
+- App: `pixelation-tool.html`
 - Container: `Dockerfile`
 - Fly config: `fly.toml`
 - Codespaces config: `.devcontainer/devcontainer.json`

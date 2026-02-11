@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dithering Effect Demo</title>
+  <title>Pixelation Tool</title>
   <style>
     @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
 
@@ -275,8 +275,8 @@
 </head>
 <body>
   <aside class="panel">
-    <h1>Dithering Effect</h1>
-    <p class="sub">Upload media and tune tone, noise, and dithering method.</p>
+    <h1>Pixelation Tool</h1>
+    <p class="sub">Upload media and fine-tune tone, contrast, and pixel style for export.</p>
 
     <div class="control">
       <label>Upload Image / Video</label>
@@ -441,6 +441,7 @@
       ffmpegLoading: false,
       isTranscoding: false,
       cancelNextRecordingOutput: false,
+      exportCount: 0,
     };
 
     const bayer4 = [
@@ -456,6 +457,12 @@
 
     function setStatus(text) {
       controls.statusText.textContent = text || "";
+    }
+
+    function nextExportFileName(ext) {
+      state.exportCount += 1;
+      const n = String(state.exportCount).padStart(3, "0");
+      return `Pixelation_${n}.${ext}`;
     }
 
     function quantize(v, levels) {
@@ -779,7 +786,7 @@
           const directUrl = URL.createObjectURL(recordedBlob);
           const a = document.createElement("a");
           a.href = directUrl;
-          a.download = "dithering-output.mp4";
+          a.download = nextExportFileName("mp4");
           a.click();
           setTimeout(() => URL.revokeObjectURL(directUrl), 1000);
           return;
@@ -789,7 +796,7 @@
           const url = URL.createObjectURL(mp4Blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "dithering-output.mp4";
+          a.download = nextExportFileName("mp4");
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         } catch (_err) {
@@ -797,7 +804,7 @@
           const fallbackUrl = URL.createObjectURL(recordedBlob);
           const a = document.createElement("a");
           a.href = fallbackUrl;
-          a.download = "dithering-output.webm";
+          a.download = nextExportFileName("webm");
           a.click();
           setTimeout(() => URL.revokeObjectURL(fallbackUrl), 1000);
           setStatus("");
@@ -1086,7 +1093,7 @@
       if (!canvas.width || !canvas.height) return;
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
-      a.download = "dithering-output.png";
+      a.download = nextExportFileName("png");
       a.click();
     });
 
@@ -1098,7 +1105,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "dithering-output.svg";
+      a.download = nextExportFileName("svg");
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
