@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dithering Effect Demo</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+    :root {
+      --bg: #090909;
+      --panel: #121212;
+      --ink: #f2f2f2;
+      --muted: #a8a8a8;
+      --line: #2a2a2a;
+      --accent: #f2f2f2;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #181818 0%, rgba(24, 24, 24, 0) 40%),
+        radial-gradient(circle at 85% 90%, #151515 0%, rgba(21, 21, 21, 0) 35%),
+        var(--bg);
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+
+    p.sub {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .control {
+      margin-bottom: 12px;
+    }
+
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+
+    input[type="range"], select, input[type="file"], button {
+      width: 100%;
+    }
+
+    input[type="range"] {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 2px;
+      border-radius: 999px;
+      background: #2d2d2d;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #d8d8d8;
+      background: #0f0f0f;
+      box-shadow: none;
+      cursor: ew-resize;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 2px;
+      border: none;
+      border-radius: 999px;
+      background: #2d2d2d;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #d8d8d8;
+      background: #0f0f0f;
+      cursor: ew-resize;
+    }
+
+    select, button, input[type="file"] {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 8px;
+      background: #0f0f0f;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 11px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: background-color 120ms ease, border-color 120ms ease;
+    }
+
+    button:hover {
+      background: #1b1b1b;
+      border-color: #3a3a3a;
+    }
+
+    .canvas-wrap {
+      background: #050505;
+      border-radius: 16px;
+      border: 1px solid #1f1f1f;
+      overflow: hidden;
+      min-height: 70vh;
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    canvas {
+      max-width: 100%;
+      height: auto;
+      image-rendering: pixelated;
+      display: block;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 960px) {
+      body {
+        grid-template-columns: 1fr;
+      }
+      .canvas-wrap {
+        min-height: 48vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="panel">
+    <h1>Dithering Effect</h1>
+    <p class="sub">Upload media and tune tone, noise, and dithering method.</p>
+
+    <div class="control">
+      <label>Upload Image / Video</label>
+      <input id="fileInput" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" />
+      <p class="hint">MP4/WebM/MOV input supported.</p>
+    </div>
+
+    <div class="row">
+      <div class="control">
+        <label for="mode">Output Mode</label>
+        <select id="mode">
+          <option value="mono">Mono</option>
+          <option value="rgb">RGB</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="method">Algorithm</label>
+        <select id="method">
+          <option value="floyd">Floyd-Steinberg</option>
+          <option value="bayer4">Bayer 4x4</option>
+          <option value="random">Random Threshold</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="control">
+      <label for="pixelSize">Pixel Size <span id="pixelSizeVal"></span></label>
+      <input id="pixelSize" type="range" min="1" max="12" value="4" />
+    </div>
+
+    <div class="control">
+      <label for="levels">Levels <span id="levelsVal"></span></label>
+      <input id="levels" type="range" min="2" max="8" value="2" />
+    </div>
+
+    <div class="control">
+      <label for="contrast">Contrast <span id="contrastVal"></span></label>
+      <input id="contrast" type="range" min="0" max="3" step="0.01" value="1.2" />
+    </div>
+
+    <div class="control">
+      <label for="brightness">Brightness <span id="brightnessVal"></span></label>
+      <input id="brightness" type="range" min="-120" max="120" value="0" />
+    </div>
+
+    <div class="control">
+      <label for="gamma">Gamma <span id="gammaVal"></span></label>
+      <input id="gamma" type="range" min="0.3" max="2.6" step="0.01" value="1" />
+    </div>
+
+    <div class="control">
+      <label for="noise">Noise <span id="noiseVal"></span></label>
+      <input id="noise" type="range" min="0" max="80" value="0" />
+    </div>
+
+    <div class="control">
+      <label for="blur">Blur <span id="blurVal"></span></label>
+      <input id="blur" type="range" min="0" max="4" step="0.1" value="0" />
+    </div>
+
+    <div class="row">
+      <div class="control">
+        <label for="blackPoint">Black Point <span id="blackPointVal"></span></label>
+        <input id="blackPoint" type="range" min="0" max="100" value="0" />
+      </div>
+      <div class="control">
+        <label for="whitePoint">White Point <span id="whitePointVal"></span></label>
+        <input id="whitePoint" type="range" min="155" max="255" value="255" />
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="playPauseBtn" type="button" disabled>Play</button>
+      <button id="downloadBtn" type="button">Download PNG</button>
+    </div>
+    <div class="row">
+      <button id="recordBtn" type="button" disabled>Start Video Export</button>
+    </div>
+    <p class="hint">Export auto-converts WebM to MP4.</p>
+    <p id="statusText" class="hint"></p>
+  </aside>
+
+  <main class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </main>
+
+  <script type="module">
+    import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js";
+    import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js";
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const work = document.createElement("canvas");
+    const wctx = work.getContext("2d", { willReadFrequently: true });
+    const sourceVideo = document.createElement("video");
+    sourceVideo.muted = true;
+    sourceVideo.loop = true;
+    sourceVideo.playsInline = true;
+    sourceVideo.preload = "auto";
+
+    const controls = {
+      fileInput: document.getElementById("fileInput"),
+      mode: document.getElementById("mode"),
+      method: document.getElementById("method"),
+      pixelSize: document.getElementById("pixelSize"),
+      levels: document.getElementById("levels"),
+      contrast: document.getElementById("contrast"),
+      brightness: document.getElementById("brightness"),
+      gamma: document.getElementById("gamma"),
+      noise: document.getElementById("noise"),
+      blur: document.getElementById("blur"),
+      blackPoint: document.getElementById("blackPoint"),
+      whitePoint: document.getElementById("whitePoint"),
+      playPauseBtn: document.getElementById("playPauseBtn"),
+      downloadBtn: document.getElementById("downloadBtn"),
+      recordBtn: document.getElementById("recordBtn"),
+      statusText: document.getElementById("statusText"),
+    };
+
+    const valueViews = {
+      pixelSize: document.getElementById("pixelSizeVal"),
+      levels: document.getElementById("levelsVal"),
+      contrast: document.getElementById("contrastVal"),
+      brightness: document.getElementById("brightnessVal"),
+      gamma: document.getElementById("gammaVal"),
+      noise: document.getElementById("noiseVal"),
+      blur: document.getElementById("blurVal"),
+      blackPoint: document.getElementById("blackPointVal"),
+      whitePoint: document.getElementById("whitePointVal"),
+    };
+
+    const state = {
+      original: null,
+      sourceW: 0,
+      sourceH: 0,
+      sourceType: "image",
+      videoRafId: null,
+      activeObjectUrl: null,
+      recorder: null,
+      recordChunks: [],
+      isRecording: false,
+      loopBeforeRecord: null,
+      recordEndHandler: null,
+      ffmpeg: null,
+      ffmpegLoaded: false,
+      ffmpegLoading: false,
+      isTranscoding: false,
+      cancelNextRecordingOutput: false,
+    };
+
+    const bayer4 = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ];
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function setStatus(text) {
+      controls.statusText.textContent = text || "";
+    }
+
+    function quantize(v, levels) {
+      const step = 255 / (levels - 1);
+      return Math.round(v / step) * step;
+    }
+
+    function updateValueLabels() {
+      Object.keys(valueViews).forEach((k) => {
+        valueViews[k].textContent = controls[k].value;
+      });
+    }
+
+    function setVideoActionEnabled(enabled) {
+      controls.playPauseBtn.disabled = !enabled;
+      controls.recordBtn.disabled = !enabled;
+    }
+
+    async function ensureFfmpegLoaded() {
+      if (state.ffmpegLoaded && state.ffmpeg) return state.ffmpeg;
+      if (state.ffmpegLoading) {
+        while (state.ffmpegLoading) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        if (state.ffmpegLoaded && state.ffmpeg) return state.ffmpeg;
+        throw new Error("FFmpeg loading failed");
+      }
+
+      state.ffmpegLoading = true;
+      setStatus("Loading MP4 encoder...");
+      try {
+        const ffmpeg = new FFmpeg();
+        const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
+        const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript");
+        const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm");
+        const workerURL = await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, "text/javascript");
+        await ffmpeg.load({ coreURL, wasmURL, workerURL });
+        state.ffmpeg = ffmpeg;
+        state.ffmpegLoaded = true;
+        setStatus("");
+        return ffmpeg;
+      } finally {
+        state.ffmpegLoading = false;
+      }
+    }
+
+    async function transcodeWebmToMp4(webmBlob) {
+      const ffmpeg = await ensureFfmpegLoaded();
+      state.isTranscoding = true;
+      setVideoActionEnabled(false);
+      setStatus("Converting to MP4... this may take a while.");
+
+      try {
+        await ffmpeg.writeFile("input.webm", await fetchFile(webmBlob));
+        try {
+          await ffmpeg.exec([
+            "-i", "input.webm",
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            "output.mp4",
+          ]);
+        } catch (_x264Err) {
+          await ffmpeg.exec([
+            "-i", "input.webm",
+            "-c:v", "mpeg4",
+            "-q:v", "2",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            "output.mp4",
+          ]);
+        }
+        const mp4Data = await ffmpeg.readFile("output.mp4");
+        return new Blob([mp4Data], { type: "video/mp4" });
+      } finally {
+        try { await ffmpeg.deleteFile("input.webm"); } catch (_e) {}
+        try { await ffmpeg.deleteFile("output.mp4"); } catch (_e) {}
+        state.isTranscoding = false;
+        if (state.sourceType === "video") {
+          setVideoActionEnabled(true);
+          controls.playPauseBtn.textContent = sourceVideo.paused ? "Play" : "Pause";
+          controls.recordBtn.textContent = state.isRecording ? "Stop Video Export" : "Start Video Export";
+        }
+        setStatus("");
+      }
+    }
+
+    function fitSourceSize(w, h) {
+      const maxEdge = 1920;
+      const ratio = Math.min(1, maxEdge / Math.max(w, h));
+      return {
+        w: Math.max(1, Math.round(w * ratio)),
+        h: Math.max(1, Math.round(h * ratio)),
+      };
+    }
+
+    function processImage() {
+      if (!state.original) return;
+
+      updateValueLabels();
+
+      const mode = controls.mode.value;
+      const method = controls.method.value;
+      const pixelSize = parseInt(controls.pixelSize.value, 10);
+      const levels = parseInt(controls.levels.value, 10);
+      const contrast = parseFloat(controls.contrast.value);
+      const brightness = parseInt(controls.brightness.value, 10);
+      const gamma = parseFloat(controls.gamma.value);
+      const noiseAmount = parseFloat(controls.noise.value);
+      const blur = parseFloat(controls.blur.value);
+      const blackPoint = parseInt(controls.blackPoint.value, 10);
+      const whitePoint = parseInt(controls.whitePoint.value, 10);
+
+      const srcW = Math.max(1, Math.floor(state.sourceW / pixelSize));
+      const srcH = Math.max(1, Math.floor(state.sourceH / pixelSize));
+
+      if (work.width !== srcW || work.height !== srcH) {
+        work.width = srcW;
+        work.height = srcH;
+      }
+
+      wctx.filter = `blur(${blur}px)`;
+      wctx.drawImage(state.original, 0, 0, srcW, srcH);
+      wctx.filter = "none";
+
+      const imageData = wctx.getImageData(0, 0, srcW, srcH);
+      const data = imageData.data;
+      const lum = new Float32Array(srcW * srcH);
+
+      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        r = (r - 128) * contrast + 128 + brightness;
+        g = (g - 128) * contrast + 128 + brightness;
+        b = (b - 128) * contrast + 128 + brightness;
+
+        if (noiseAmount > 0) {
+          const n = (Math.random() * 2 - 1) * noiseAmount;
+          r += n;
+          g += n;
+          b += n;
+        }
+
+        const mapTone = (v) => {
+          const t = clamp((v - blackPoint) / Math.max(1, whitePoint - blackPoint), 0, 1);
+          return clamp(Math.pow(t, 1 / gamma) * 255, 0, 255);
+        };
+
+        r = mapTone(r);
+        g = mapTone(g);
+        b = mapTone(b);
+
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+        lum[p] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+
+      if (method === "floyd") {
+        if (mode === "mono") {
+          applyFloydMono(lum, srcW, srcH, levels);
+          for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+            const q = clamp(Math.round(lum[p]), 0, 255);
+            data[i] = q;
+            data[i + 1] = q;
+            data[i + 2] = q;
+          }
+        } else {
+          applyFloydRGB(data, srcW, srcH, levels);
+        }
+      } else if (method === "bayer4") {
+        if (mode === "mono") {
+          for (let y = 0; y < srcH; y++) {
+            for (let x = 0; x < srcW; x++) {
+              const p = y * srcW + x;
+              const i = p * 4;
+              const threshold = ((bayer4[y % 4][x % 4] + 0.5) / 16 - 0.5) * (255 / levels);
+              const q = quantize(clamp(lum[p] + threshold, 0, 255), levels);
+              data[i] = q;
+              data[i + 1] = q;
+              data[i + 2] = q;
+            }
+          }
+        } else {
+          applyBayerRGB(data, srcW, srcH, levels);
+        }
+      } else {
+        if (mode === "mono") {
+          for (let y = 0; y < srcH; y++) {
+            for (let x = 0; x < srcW; x++) {
+              const p = y * srcW + x;
+              const i = p * 4;
+              const jitter = (Math.random() - 0.5) * (255 / levels);
+              const q = quantize(clamp(lum[p] + jitter, 0, 255), levels);
+              data[i] = q;
+              data[i + 1] = q;
+              data[i + 2] = q;
+            }
+          }
+        } else {
+          for (let i = 0; i < data.length; i += 4) {
+            data[i] = quantize(clamp(data[i] + (Math.random() - 0.5) * (255 / levels), 0, 255), levels);
+            data[i + 1] = quantize(clamp(data[i + 1] + (Math.random() - 0.5) * (255 / levels), 0, 255), levels);
+            data[i + 2] = quantize(clamp(data[i + 2] + (Math.random() - 0.5) * (255 / levels), 0, 255), levels);
+          }
+        }
+      }
+
+      wctx.putImageData(imageData, 0, 0);
+
+      canvas.width = srcW * pixelSize;
+      canvas.height = srcH * pixelSize;
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(work, 0, 0, canvas.width, canvas.height);
+    }
+
+    function stopVideoLoop() {
+      if (state.videoRafId) {
+        cancelAnimationFrame(state.videoRafId);
+        state.videoRafId = null;
+      }
+    }
+
+    function getRecordMimeType() {
+      const types = [
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+      ];
+      for (const t of types) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return "";
+    }
+
+    function startVideoLoop() {
+      if (state.sourceType !== "video") return;
+      stopVideoLoop();
+
+      const render = () => {
+        if (state.sourceType !== "video") {
+          stopVideoLoop();
+          return;
+        }
+        if (!sourceVideo.paused && !sourceVideo.ended) {
+          processImage();
+          state.videoRafId = requestAnimationFrame(render);
+          return;
+        }
+        state.videoRafId = null;
+      };
+
+      render();
+    }
+
+    function clearActiveObjectURL() {
+      if (!state.activeObjectUrl) return;
+      URL.revokeObjectURL(state.activeObjectUrl);
+      state.activeObjectUrl = null;
+    }
+
+    function stopRecording() {
+      if (!state.isRecording || !state.recorder) return;
+      state.isRecording = false;
+      controls.recordBtn.textContent = "Start Video Export";
+
+      if (state.recordEndHandler) {
+        sourceVideo.removeEventListener("ended", state.recordEndHandler);
+        state.recordEndHandler = null;
+      }
+
+      if (state.loopBeforeRecord !== null) {
+        sourceVideo.loop = state.loopBeforeRecord;
+        state.loopBeforeRecord = null;
+      }
+
+      if (state.recorder.state !== "inactive") {
+        state.recorder.stop();
+      }
+    }
+
+    async function startRecording() {
+      if (state.sourceType !== "video") return;
+      if (state.isTranscoding) return;
+      if (!window.MediaRecorder) {
+        alert("This browser does not support video export (MediaRecorder).");
+        return;
+      }
+      if (state.isRecording) return;
+
+      const mimeType = getRecordMimeType();
+      const stream = canvas.captureStream(60);
+      const options = mimeType ? { mimeType, videoBitsPerSecond: 20_000_000 } : { videoBitsPerSecond: 20_000_000 };
+      const recorder = new MediaRecorder(stream, options);
+      state.recordChunks = [];
+      state.recorder = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) state.recordChunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        if (state.cancelNextRecordingOutput) {
+          state.cancelNextRecordingOutput = false;
+          state.recordChunks = [];
+          state.recorder = null;
+          return;
+        }
+        const type = mimeType || "video/webm";
+        const recordedBlob = new Blob(state.recordChunks, { type });
+        state.recordChunks = [];
+        state.recorder = null;
+        if (type.includes("video/mp4")) {
+          const directUrl = URL.createObjectURL(recordedBlob);
+          const a = document.createElement("a");
+          a.href = directUrl;
+          a.download = "dithering-output.mp4";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(directUrl), 1000);
+          return;
+        }
+        try {
+          const mp4Blob = await transcodeWebmToMp4(recordedBlob);
+          const url = URL.createObjectURL(mp4Blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "dithering-output.mp4";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (_err) {
+          alert("MP4 conversion failed. Saving the original WebM instead.");
+          const fallbackUrl = URL.createObjectURL(recordedBlob);
+          const a = document.createElement("a");
+          a.href = fallbackUrl;
+          a.download = "dithering-output.webm";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(fallbackUrl), 1000);
+          setStatus("");
+          if (state.sourceType === "video") setVideoActionEnabled(true);
+        }
+      };
+
+      state.loopBeforeRecord = sourceVideo.loop;
+      sourceVideo.loop = false;
+      state.recordEndHandler = () => {
+        stopRecording();
+      };
+      sourceVideo.addEventListener("ended", state.recordEndHandler, { once: true });
+
+      // Always export full duration from the first frame.
+      sourceVideo.pause();
+      if (sourceVideo.currentTime !== 0) {
+        await new Promise((resolve) => {
+          const onSeeked = () => resolve();
+          sourceVideo.addEventListener("seeked", onSeeked, { once: true });
+          sourceVideo.currentTime = 0;
+        });
+      }
+      processImage();
+
+      recorder.start(250);
+      state.isRecording = true;
+      controls.recordBtn.textContent = "Stop Video Export";
+
+      try {
+        await sourceVideo.play();
+      } catch (_err) {
+        state.cancelNextRecordingOutput = true;
+        stopRecording();
+        sourceVideo.loop = state.loopBeforeRecord;
+        state.loopBeforeRecord = null;
+        state.recordEndHandler = null;
+        state.recordChunks = [];
+        state.recorder = null;
+        alert("Cannot start export because video playback is blocked.");
+        return;
+      }
+
+      startVideoLoop();
+    }
+
+    function stopCurrentMedia() {
+      stopRecording();
+      stopVideoLoop();
+      sourceVideo.pause();
+      sourceVideo.removeAttribute("src");
+      sourceVideo.load();
+      clearActiveObjectURL();
+      controls.playPauseBtn.disabled = true;
+      controls.playPauseBtn.textContent = "Play";
+      controls.recordBtn.disabled = true;
+      controls.recordBtn.textContent = "Start Video Export";
+      setStatus("");
+    }
+
+    function applyFloydMono(buffer, w, h, levels) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const oldPx = buffer[idx];
+          const newPx = quantize(oldPx, levels);
+          const err = oldPx - newPx;
+          buffer[idx] = newPx;
+
+          if (x + 1 < w) buffer[idx + 1] += err * (7 / 16);
+          if (x - 1 >= 0 && y + 1 < h) buffer[idx + w - 1] += err * (3 / 16);
+          if (y + 1 < h) buffer[idx + w] += err * (5 / 16);
+          if (x + 1 < w && y + 1 < h) buffer[idx + w + 1] += err * (1 / 16);
+        }
+      }
+    }
+
+    function applyFloydRGB(data, w, h, levels) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            const oldPx = data[i + c];
+            const newPx = quantize(oldPx, levels);
+            const err = oldPx - newPx;
+            data[i + c] = newPx;
+
+            spreadError(data, w, h, x, y, c, err, 1, 0, 7 / 16);
+            spreadError(data, w, h, x, y, c, err, -1, 1, 3 / 16);
+            spreadError(data, w, h, x, y, c, err, 0, 1, 5 / 16);
+            spreadError(data, w, h, x, y, c, err, 1, 1, 1 / 16);
+          }
+        }
+      }
+    }
+
+    function spreadError(data, w, h, x, y, channel, err, ox, oy, factor) {
+      const nx = x + ox;
+      const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+      const ni = (ny * w + nx) * 4 + channel;
+      data[ni] = clamp(data[ni] + err * factor, 0, 255);
+    }
+
+    function applyBayerRGB(data, w, h, levels) {
+      const scale = 255 / levels;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const t = ((bayer4[y % 4][x % 4] + 0.5) / 16 - 0.5) * scale;
+          data[i] = quantize(clamp(data[i] + t, 0, 255), levels);
+          data[i + 1] = quantize(clamp(data[i + 1] + t, 0, 255), levels);
+          data[i + 2] = quantize(clamp(data[i + 2] + t, 0, 255), levels);
+        }
+      }
+    }
+
+    function loadImageFromFile(file) {
+      stopCurrentMedia();
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      state.activeObjectUrl = url;
+      img.onload = () => {
+        const size = fitSourceSize(img.naturalWidth, img.naturalHeight);
+        state.sourceW = size.w;
+        state.sourceH = size.h;
+        state.original = img;
+        state.sourceType = "image";
+        processImage();
+        clearActiveObjectURL();
+      };
+      img.src = url;
+    }
+
+    function loadVideoFromFile(file) {
+      stopCurrentMedia();
+      const url = URL.createObjectURL(file);
+      state.activeObjectUrl = url;
+      sourceVideo.src = url;
+
+      sourceVideo.onloadedmetadata = () => {
+        const size = fitSourceSize(sourceVideo.videoWidth, sourceVideo.videoHeight);
+        state.sourceW = size.w;
+        state.sourceH = size.h;
+        state.original = sourceVideo;
+        state.sourceType = "video";
+        setVideoActionEnabled(true);
+        controls.playPauseBtn.textContent = "Pause";
+        clearActiveObjectURL();
+
+        sourceVideo.play().then(() => {
+          startVideoLoop();
+        }).catch(() => {
+          controls.playPauseBtn.textContent = "Play";
+          processImage();
+        });
+      };
+    }
+
+    controls.fileInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.type.startsWith("video/")) {
+        loadVideoFromFile(file);
+        return;
+      }
+      loadImageFromFile(file);
+    });
+
+    Object.values(controls).forEach((el) => {
+      if (el === controls.fileInput || el === controls.downloadBtn || el === controls.playPauseBtn || el === controls.recordBtn || el === controls.statusText) return;
+      el.addEventListener("input", processImage);
+      el.addEventListener("change", processImage);
+    });
+
+    controls.playPauseBtn.addEventListener("click", async () => {
+      if (state.sourceType !== "video") return;
+      if (state.isTranscoding) return;
+      if (sourceVideo.paused) {
+        try {
+          await sourceVideo.play();
+          controls.playPauseBtn.textContent = "Pause";
+          startVideoLoop();
+        } catch (_err) {
+          controls.playPauseBtn.textContent = "Play";
+        }
+        return;
+      }
+
+      if (state.isRecording) stopRecording();
+      sourceVideo.pause();
+      controls.playPauseBtn.textContent = "Play";
+      stopVideoLoop();
+      processImage();
+    });
+
+    controls.recordBtn.addEventListener("click", async () => {
+      if (state.sourceType !== "video") return;
+      if (state.isTranscoding) return;
+      if (state.isRecording) {
+        stopRecording();
+        return;
+      }
+      await startRecording();
+    });
+
+    controls.downloadBtn.addEventListener("click", () => {
+      if (!canvas.width || !canvas.height) return;
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "dithering-output.png";
+      a.click();
+    });
+
+    (function initPlaceholder() {
+      const sample = document.createElement("canvas");
+      sample.width = 900;
+      sample.height = 560;
+      const sctx = sample.getContext("2d");
+
+      const g = sctx.createLinearGradient(0, 0, sample.width, sample.height);
+      g.addColorStop(0, "#f5d68a");
+      g.addColorStop(0.5, "#db7f53");
+      g.addColorStop(1, "#2f2725");
+      sctx.fillStyle = g;
+      sctx.fillRect(0, 0, sample.width, sample.height);
+
+      sctx.fillStyle = "rgba(255,255,255,0.35)";
+      sctx.beginPath();
+      sctx.arc(220, 180, 120, 0, Math.PI * 2);
+      sctx.fill();
+
+      sctx.fillStyle = "rgba(20,20,20,0.35)";
+      sctx.beginPath();
+      sctx.ellipse(630, 330, 190, 120, 0.2, 0, Math.PI * 2);
+      sctx.fill();
+
+      sctx.fillStyle = "rgba(255,255,255,0.8)";
+      sctx.font = "700 64px 'JetBrains Mono', monospace";
+      sctx.fillText("DITHER", 260, 315);
+
+      const img = new Image();
+      img.onload = () => {
+        const size = fitSourceSize(img.naturalWidth, img.naturalHeight);
+        state.original = img;
+        state.sourceType = "image";
+        state.sourceW = size.w;
+        state.sourceH = size.h;
+        processImage();
+      };
+      img.src = sample.toDataURL("image/png");
+    })();
+  </script>
+</body>
+</html>
