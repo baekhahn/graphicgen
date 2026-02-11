@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,7 +30,7 @@
         radial-gradient(circle at 85% 90%, #151515 0%, rgba(21, 21, 21, 0) 35%),
         var(--bg);
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 1fr 320px;
       gap: 18px;
       padding: 18px;
     }
@@ -41,6 +41,8 @@
       border-radius: 16px;
       padding: 16px;
       box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+      grid-column: 2;
+      grid-row: 1;
     }
 
     h1 {
@@ -139,6 +141,8 @@
       display: grid;
       place-items: center;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      grid-column: 1;
+      grid-row: 1;
     }
 
     canvas {
@@ -154,15 +158,75 @@
       gap: 10px;
     }
 
+    .button-row + .button-row {
+      margin-top: 10px;
+    }
+
     .hint {
       margin-top: 6px;
       font-size: 10px;
       color: var(--muted);
     }
 
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .file-picker {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #0f0f0f;
+    }
+
+    .file-btn {
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      padding: 7px 10px;
+      background: #202020;
+      color: var(--ink);
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .file-btn:hover {
+      background: #2a2a2a;
+      border-color: #4a4a4a;
+    }
+
+    .file-name {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     @media (max-width: 960px) {
       body {
         grid-template-columns: 1fr;
+      }
+      .canvas-wrap {
+        grid-column: 1;
+        grid-row: 1;
+      }
+      .panel {
+        grid-column: 1;
+        grid-row: 2;
       }
       .canvas-wrap {
         min-height: 48vh;
@@ -177,7 +241,11 @@
 
     <div class="control">
       <label>Upload Image / Video</label>
-      <input id="fileInput" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" />
+      <input id="fileInput" class="file-input" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" />
+      <div class="file-picker">
+        <label for="fileInput" class="file-btn">Choose File</label>
+        <span id="fileNameText" class="file-name">No file selected</span>
+      </div>
       <p class="hint">MP4/WebM/MOV input supported.</p>
     </div>
 
@@ -245,12 +313,13 @@
       </div>
     </div>
 
-    <div class="row">
+    <div class="row button-row">
       <button id="playPauseBtn" type="button" disabled>Play</button>
-      <button id="downloadBtn" type="button">Download PNG</button>
+      <button id="downloadSvgBtn" type="button">Download SVG</button>
     </div>
-    <div class="row">
-      <button id="recordBtn" type="button" disabled>Start Video Export</button>
+    <div class="row button-row">
+      <button id="recordBtn" type="button" disabled>Download Video</button>
+      <button id="downloadBtn" type="button">Download PNG</button>
     </div>
     <p class="hint">Export auto-converts WebM to MP4.</p>
     <p id="statusText" class="hint"></p>
@@ -276,6 +345,7 @@
 
     const controls = {
       fileInput: document.getElementById("fileInput"),
+      fileNameText: document.getElementById("fileNameText"),
       mode: document.getElementById("mode"),
       method: document.getElementById("method"),
       pixelSize: document.getElementById("pixelSize"),
@@ -289,6 +359,7 @@
       whitePoint: document.getElementById("whitePoint"),
       playPauseBtn: document.getElementById("playPauseBtn"),
       downloadBtn: document.getElementById("downloadBtn"),
+      downloadSvgBtn: document.getElementById("downloadSvgBtn"),
       recordBtn: document.getElementById("recordBtn"),
       statusText: document.getElementById("statusText"),
     };
@@ -420,7 +491,7 @@
         if (state.sourceType === "video") {
           setVideoActionEnabled(true);
           controls.playPauseBtn.textContent = sourceVideo.paused ? "Play" : "Pause";
-          controls.recordBtn.textContent = state.isRecording ? "Stop Video Export" : "Start Video Export";
+          controls.recordBtn.textContent = state.isRecording ? "Stop Video Export" : "Download Video";
         }
         setStatus("");
       }
@@ -608,7 +679,7 @@
     function stopRecording() {
       if (!state.isRecording || !state.recorder) return;
       state.isRecording = false;
-      controls.recordBtn.textContent = "Start Video Export";
+      controls.recordBtn.textContent = "Download Video";
 
       if (state.recordEndHandler) {
         sourceVideo.removeEventListener("ended", state.recordEndHandler);
@@ -735,7 +806,7 @@
       controls.playPauseBtn.disabled = true;
       controls.playPauseBtn.textContent = "Play";
       controls.recordBtn.disabled = true;
-      controls.recordBtn.textContent = "Start Video Export";
+      controls.recordBtn.textContent = "Download Video";
       setStatus("");
     }
 
@@ -838,9 +909,78 @@
       };
     }
 
+    function channelToHex(v) {
+      return clamp(v, 0, 255).toString(16).padStart(2, "0");
+    }
+
+    function alphaToSvgOpacity(a) {
+      if (a >= 255) return "";
+      const opacity = (a / 255).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+      return ` fill-opacity="${opacity || "0"}"`;
+    }
+
+    function buildSvgFromWorkCanvas() {
+      if (!work.width || !work.height) return "";
+
+      const pixelSize = parseInt(controls.pixelSize.value, 10);
+      const w = work.width;
+      const h = work.height;
+      const outW = w * pixelSize;
+      const outH = h * pixelSize;
+      const { data } = wctx.getImageData(0, 0, w, h);
+      const parts = [
+        `<?xml version="1.0" encoding="UTF-8"?>`,
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}" shape-rendering="crispEdges">`,
+      ];
+
+      const emitRun = (xStart, xEnd, y, r, g, b, a) => {
+        if (xEnd <= xStart || a <= 0) return;
+        const fill = `#${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`;
+        const opacity = alphaToSvgOpacity(a);
+        parts.push(
+          `<rect x="${xStart * pixelSize}" y="${y * pixelSize}" width="${(xEnd - xStart) * pixelSize}" height="${pixelSize}" fill="${fill}"${opacity}/>`
+        );
+      };
+
+      for (let y = 0; y < h; y++) {
+        const rowStart = y * w * 4;
+        let runStart = 0;
+        let runR = data[rowStart];
+        let runG = data[rowStart + 1];
+        let runB = data[rowStart + 2];
+        let runA = data[rowStart + 3];
+
+        for (let x = 1; x <= w; x++) {
+          const i = rowStart + x * 4;
+          const atEnd = x === w;
+          const r = atEnd ? -1 : data[i];
+          const g = atEnd ? -1 : data[i + 1];
+          const b = atEnd ? -1 : data[i + 2];
+          const a = atEnd ? -1 : data[i + 3];
+          const changed = atEnd || r !== runR || g !== runG || b !== runB || a !== runA;
+
+          if (!changed) continue;
+
+          emitRun(runStart, x, y, runR, runG, runB, runA);
+          runStart = x;
+          runR = r;
+          runG = g;
+          runB = b;
+          runA = a;
+        }
+      }
+
+      parts.push("</svg>");
+      return parts.join("\n");
+    }
+
     controls.fileInput.addEventListener("change", (e) => {
       const file = e.target.files?.[0];
-      if (!file) return;
+      if (!file) {
+        controls.fileNameText.textContent = "No file selected";
+        return;
+      }
+      controls.fileNameText.textContent = file.name;
       if (file.type.startsWith("video/")) {
         loadVideoFromFile(file);
         return;
@@ -849,7 +989,14 @@
     });
 
     Object.values(controls).forEach((el) => {
-      if (el === controls.fileInput || el === controls.downloadBtn || el === controls.playPauseBtn || el === controls.recordBtn || el === controls.statusText) return;
+      if (
+        el === controls.fileInput ||
+        el === controls.downloadBtn ||
+        el === controls.downloadSvgBtn ||
+        el === controls.playPauseBtn ||
+        el === controls.recordBtn ||
+        el === controls.statusText
+      ) return;
       el.addEventListener("input", processImage);
       el.addEventListener("change", processImage);
     });
@@ -891,6 +1038,19 @@
       a.href = canvas.toDataURL("image/png");
       a.download = "dithering-output.png";
       a.click();
+    });
+
+    controls.downloadSvgBtn.addEventListener("click", () => {
+      if (!canvas.width || !canvas.height) return;
+      const svg = buildSvgFromWorkCanvas();
+      if (!svg) return;
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "dithering-output.svg";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
 
     (function initPlaceholder() {
