@@ -162,10 +162,38 @@
       margin-top: 10px;
     }
 
+    .download-section-title {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.02em;
+    }
+
     .hint {
       margin-top: 6px;
       font-size: 10px;
       color: var(--muted);
+    }
+
+    .check-control {
+      margin-top: 8px;
+      margin-bottom: 18px;
+      padding-bottom: 2px;
+    }
+
+    .check-control label {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .check-control input[type="checkbox"] {
+      width: auto;
     }
 
     .file-input {
@@ -316,13 +344,20 @@
       </div>
     </div>
 
+    <p class="download-section-title">Download Option</p>
     <div class="row button-row">
-      <button id="playPauseBtn" type="button" disabled>Play</button>
-      <button id="downloadSvgBtn" type="button">Download SVG</button>
+      <button id="downloadSvgBtn" type="button">SVG</button>
+      <button id="downloadBtn" type="button">PNG</button>
+    </div>
+    <div class="control check-control">
+      <label for="svgBlackOnly">
+        <input id="svgBlackOnly" type="checkbox" checked />
+        SVG: Black only (remove white area)
+      </label>
     </div>
     <div class="row button-row">
-      <button id="recordBtn" type="button" disabled>Download Video</button>
-      <button id="downloadBtn" type="button">Download PNG</button>
+      <button id="playPauseBtn" type="button" disabled>Play</button>
+      <button id="recordBtn" type="button" disabled>Export</button>
     </div>
     <p class="hint">Export auto-converts WebM to MP4.</p>
     <p id="statusText" class="hint"></p>
@@ -363,6 +398,7 @@
       playPauseBtn: document.getElementById("playPauseBtn"),
       downloadBtn: document.getElementById("downloadBtn"),
       downloadSvgBtn: document.getElementById("downloadSvgBtn"),
+      svgBlackOnly: document.getElementById("svgBlackOnly"),
       recordBtn: document.getElementById("recordBtn"),
       statusText: document.getElementById("statusText"),
     };
@@ -494,7 +530,7 @@
         if (state.sourceType === "video") {
           setVideoActionEnabled(true);
           controls.playPauseBtn.textContent = sourceVideo.paused ? "Play" : "Pause";
-          controls.recordBtn.textContent = state.isRecording ? "Stop Video Export" : "Download Video";
+          controls.recordBtn.textContent = state.isRecording ? "Stop Export" : "Export";
         }
         setStatus("");
       }
@@ -682,7 +718,7 @@
     function stopRecording() {
       if (!state.isRecording || !state.recorder) return;
       state.isRecording = false;
-      controls.recordBtn.textContent = "Download Video";
+      controls.recordBtn.textContent = "Export";
 
       if (state.recordEndHandler) {
         sourceVideo.removeEventListener("ended", state.recordEndHandler);
@@ -780,7 +816,7 @@
 
       recorder.start(250);
       state.isRecording = true;
-      controls.recordBtn.textContent = "Stop Video Export";
+      controls.recordBtn.textContent = "Stop Export";
 
       try {
         await sourceVideo.play();
@@ -809,7 +845,7 @@
       controls.playPauseBtn.disabled = true;
       controls.playPauseBtn.textContent = "Play";
       controls.recordBtn.disabled = true;
-      controls.recordBtn.textContent = "Download Video";
+      controls.recordBtn.textContent = "Export";
       setStatus("");
     }
 
@@ -922,7 +958,7 @@
       return ` fill-opacity="${opacity || "0"}"`;
     }
 
-    function buildSvgFromWorkCanvas() {
+    function buildSvgFromWorkCanvas(blackOnly = false) {
       if (!work.width || !work.height) return "";
 
       const pixelSize = parseInt(controls.pixelSize.value, 10);
@@ -938,7 +974,8 @@
 
       const emitRun = (xStart, xEnd, y, r, g, b, a) => {
         if (xEnd <= xStart || a <= 0) return;
-        const fill = `#${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`;
+        if (blackOnly && (r > 40 || g > 40 || b > 40)) return;
+        const fill = blackOnly ? "#000000" : `#${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`;
         const opacity = alphaToSvgOpacity(a);
         parts.push(
           `<rect x="${xStart * pixelSize}" y="${y * pixelSize}" width="${(xEnd - xStart) * pixelSize}" height="${pixelSize}" fill="${fill}"${opacity}/>`
@@ -996,6 +1033,7 @@
         el === controls.fileInput ||
         el === controls.downloadBtn ||
         el === controls.downloadSvgBtn ||
+        el === controls.svgBlackOnly ||
         el === controls.playPauseBtn ||
         el === controls.recordBtn ||
         el === controls.statusText
@@ -1045,7 +1083,7 @@
 
     controls.downloadSvgBtn.addEventListener("click", () => {
       if (!canvas.width || !canvas.height) return;
-      const svg = buildSvgFromWorkCanvas();
+      const svg = buildSvgFromWorkCanvas(controls.svgBlackOnly.checked);
       if (!svg) return;
       const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
       const url = URL.createObjectURL(blob);
