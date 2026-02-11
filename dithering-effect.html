@@ -43,6 +43,8 @@
       box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
       grid-column: 2;
       grid-row: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     h1 {
@@ -173,6 +175,12 @@
 
     .hint {
       margin-top: 6px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .panel-footer {
+      margin: auto 0 0;
       font-size: 10px;
       color: var(--muted);
     }
@@ -361,6 +369,7 @@
     </div>
     <p class="hint">Export auto-converts WebM to MP4.</p>
     <p id="statusText" class="hint"></p>
+    <p class="panel-footer">© Miterlab</p>
   </aside>
 
   <main class="canvas-wrap">
