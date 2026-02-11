@@ -47,6 +47,10 @@
       flex-direction: column;
     }
 
+    .title-select {
+      margin: 0 0 8px;
+    }
+
     h1 {
       margin: 0 0 6px;
       font-size: 15px;
@@ -275,8 +279,16 @@
 </head>
 <body>
   <aside class="panel">
-    <h1>Pixelation Tool</h1>
-    <p class="sub">Upload media and fine-tune tone, contrast, and pixel style for export.</p>
+    <select id="toolPreset" class="title-select" aria-label="Tool preset">
+      <option value="" disabled>MENU</option>
+      <option value="pixelation-base">Pixelation Tool</option>
+      <option value="photo-enhance">Photo Enhance</option>
+      <option value="noir-contrast">Noir Contrast</option>
+      <option value="soft-vintage">Soft Vintage</option>
+      <option value="crt-grit">CRT Grit</option>
+    </select>
+    <h1 id="toolTitle">Pixelation Tool</h1>
+    <p class="sub">Choose a style from the title dropdown, then fine-tune with the controls below.</p>
 
     <div class="control">
       <label>Upload Image / Video</label>
@@ -395,6 +407,8 @@
       fileNameText: document.getElementById("fileNameText"),
       mode: document.getElementById("mode"),
       method: document.getElementById("method"),
+      toolPreset: document.getElementById("toolPreset"),
+      toolTitle: document.getElementById("toolTitle"),
       pixelSize: document.getElementById("pixelSize"),
       levels: document.getElementById("levels"),
       contrast: document.getElementById("contrast"),
@@ -424,6 +438,10 @@
       whitePoint: document.getElementById("whitePointVal"),
     };
 
+    const presetOptionLabels = new Map(
+      Array.from(controls.toolPreset.options).map((opt) => [opt.value, opt.textContent])
+    );
+
     const state = {
       original: null,
       sourceW: 0,
@@ -442,6 +460,7 @@
       isTranscoding: false,
       cancelNextRecordingOutput: false,
       exportCount: 0,
+      selectedPreset: "pixelation-base",
     };
 
     const bayer4 = [
@@ -463,6 +482,101 @@
       state.exportCount += 1;
       const n = String(state.exportCount).padStart(3, "0");
       return `Pixelation_${n}.${ext}`;
+    }
+
+    const toolPresets = {
+      "pixelation-base": {
+        mode: "mono",
+        method: "floyd",
+        pixelSize: 4,
+        levels: 2,
+        contrast: 1.2,
+        brightness: 0,
+        gamma: 1,
+        noise: 0,
+        blur: 0,
+        blackPoint: 0,
+        whitePoint: 255,
+      },
+      "photo-enhance": {
+        mode: "rgb",
+        method: "bayer4",
+        pixelSize: 2,
+        levels: 6,
+        contrast: 1.1,
+        brightness: 8,
+        gamma: 0.95,
+        noise: 0,
+        blur: 0.3,
+        blackPoint: 0,
+        whitePoint: 245,
+      },
+      "noir-contrast": {
+        mode: "mono",
+        method: "floyd",
+        pixelSize: 3,
+        levels: 2,
+        contrast: 1.8,
+        brightness: -10,
+        gamma: 0.85,
+        noise: 6,
+        blur: 0,
+        blackPoint: 12,
+        whitePoint: 225,
+      },
+      "soft-vintage": {
+        mode: "rgb",
+        method: "random",
+        pixelSize: 3,
+        levels: 5,
+        contrast: 0.9,
+        brightness: 12,
+        gamma: 1.12,
+        noise: 4,
+        blur: 0.6,
+        blackPoint: 0,
+        whitePoint: 240,
+      },
+      "crt-grit": {
+        mode: "rgb",
+        method: "bayer4",
+        pixelSize: 5,
+        levels: 4,
+        contrast: 1.45,
+        brightness: -4,
+        gamma: 0.92,
+        noise: 12,
+        blur: 0.2,
+        blackPoint: 4,
+        whitePoint: 238,
+      },
+    };
+
+    function applyToolPreset(name) {
+      const preset = toolPresets[name];
+      if (!preset) return;
+      controls.mode.value = preset.mode;
+      controls.method.value = preset.method;
+      controls.pixelSize.value = String(preset.pixelSize);
+      controls.levels.value = String(preset.levels);
+      controls.contrast.value = String(preset.contrast);
+      controls.brightness.value = String(preset.brightness);
+      controls.gamma.value = String(preset.gamma);
+      controls.noise.value = String(preset.noise);
+      controls.blur.value = String(preset.blur);
+      controls.blackPoint.value = String(preset.blackPoint);
+      controls.whitePoint.value = String(preset.whitePoint);
+      processImage();
+    }
+
+    function syncToolTitle(presetValue) {
+      const title = presetOptionLabels.get(presetValue);
+      if (!title) return;
+      controls.toolTitle.textContent = title;
+    }
+
+    function syncMenuSelectionForOpen() {
+      controls.toolPreset.value = state.selectedPreset;
     }
 
     function quantize(v, levels) {
@@ -1047,6 +1161,7 @@
     Object.values(controls).forEach((el) => {
       if (
         el === controls.fileInput ||
+        el === controls.toolPreset ||
         el === controls.downloadBtn ||
         el === controls.downloadSvgBtn ||
         el === controls.svgBlackOnly ||
@@ -1056,6 +1171,37 @@
       ) return;
       el.addEventListener("input", processImage);
       el.addEventListener("change", processImage);
+    });
+
+    controls.toolPreset.addEventListener("change", () => {
+      const presetValue = controls.toolPreset.value;
+      if (!presetValue) return;
+      state.selectedPreset = presetValue;
+      applyToolPreset(presetValue);
+      syncToolTitle(presetValue);
+      setTimeout(() => {
+        controls.toolPreset.value = "";
+      }, 0);
+    });
+
+    controls.toolPreset.addEventListener("mousedown", () => {
+      syncMenuSelectionForOpen();
+    });
+
+    controls.toolPreset.addEventListener("touchstart", () => {
+      syncMenuSelectionForOpen();
+    });
+
+    controls.toolPreset.addEventListener("keydown", () => {
+      syncMenuSelectionForOpen();
+    });
+
+    controls.toolPreset.addEventListener("focus", () => {
+      syncMenuSelectionForOpen();
+    });
+
+    controls.toolPreset.addEventListener("blur", () => {
+      controls.toolPreset.value = "";
     });
 
     controls.playPauseBtn.addEventListener("click", async () => {
@@ -1147,6 +1293,9 @@
         processImage();
       };
       img.src = sample.toDataURL("image/png");
+      applyToolPreset("pixelation-base");
+      syncToolTitle("pixelation-base");
+      controls.toolPreset.value = "";
     })();
   </script>
 </body>
