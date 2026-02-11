@@ -1,0 +1,19 @@
+{
+  "name": "graphicgen",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "echo 'Codespace is ready. Run: python3 -m http.server 8000'",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Static Preview",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
