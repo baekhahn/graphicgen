@@ -21,10 +21,11 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
+      height: 100vh;
       font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       color: var(--ink);
+      overflow-x: hidden;
       background:
         radial-gradient(circle at 15% 10%, #181818 0%, rgba(24, 24, 24, 0) 40%),
         radial-gradient(circle at 85% 90%, #151515 0%, rgba(21, 21, 21, 0) 35%),
@@ -164,6 +165,68 @@
       gap: 10px;
     }
 
+    .tab-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 6px;
+      border: 0;
+      border-radius: 12px;
+      background: #0e0e0e;
+    }
+
+    .tab-radio {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #0f0f0f;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+      user-select: none;
+    }
+
+    .tab-radio input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tab-radio .radio-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid var(--muted);
+      background: transparent;
+    }
+
+    .tab-radio.active {
+      color: var(--ink);
+      border-color: transparent;
+      background: #141414;
+    }
+
+    .tab-radio.active .radio-dot {
+      border-color: var(--ink);
+      background: var(--ink);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
     .button-row + .button-row {
       margin-top: 10px;
     }
@@ -181,6 +244,11 @@
       margin-top: 6px;
       font-size: 10px;
       color: var(--muted);
+    }
+
+    .hint a {
+      color: inherit;
+      text-decoration: none;
     }
 
     .panel-footer {
@@ -292,19 +360,65 @@
       <option value="soft-vintage">Soft Vintage</option>
       <option value="crt-grit">CRT Grit</option>
     </select>
-    <h1 id="toolTitle">Pixelation</h1>
-    <p class="sub">Upload media and fine-tune tone, contrast, and style for export.</p>
 
-    <div class="control">
-      <label>Upload Image / Video</label>
-      <input id="fileInput" class="file-input" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" />
-      <div class="file-picker">
-        <label for="fileInput" class="file-btn">Choose File</label>
-        <span id="fileNameText" class="file-name">No file selected</span>
-      </div>
-      <p class="hint">MP4/WebM/MOV input supported.</p>
+    <div class="tab-row">
+      <label class="tab-radio active">
+        <input type="radio" name="inputMode" value="upload" checked />
+        <span class="radio-dot" aria-hidden="true"></span>
+        Upload
+      </label>
+      <label class="tab-radio">
+        <input type="radio" name="inputMode" value="source" />
+        <span class="radio-dot" aria-hidden="true"></span>
+        Data Source
+      </label>
     </div>
 
+    <div id="uploadPanel" class="tab-panel active">
+      <div class="control">
+        <label>Upload Image / Video</label>
+        <input id="fileInput" class="file-input" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" />
+        <div class="file-picker">
+          <label for="fileInput" class="file-btn">Choose File</label>
+          <span id="fileNameText" class="file-name">No file selected</span>
+        </div>
+        <p class="hint">MP4/WebM/MOV input supported.</p>
+      </div>
+    </div>
+
+    <div id="sourcePanel" class="tab-panel">
+      <div class="control">
+        <label for="dataSource">Data Source</label>
+        <select id="dataSource">
+          <option value="">None (upload or manual)</option>
+          <option value="nasa-svs">NASA SVS (Scientific Visualization Studio)</option>
+          <option value="nasa-image-video">NASA Image & Video Library</option>
+          <option value="nasa-earth-observatory-video">NASA Earth Observatory Videos</option>
+          <option value="nasa-heasarc-video">NASA HEASARC Video Archive</option>
+          <option value="nasa-landsat-archive-video">NASA Landsat Archive Video</option>
+          <option value="noaa-ocean-exploration">NOAA Ocean Exploration Video Portal</option>
+          <option value="usgs-shakemovie">USGS ShakeMovie (Seismic Waves)</option>
+          <option value="iris-usarray">IRIS USArray Wave Visualizations</option>
+          <option value="seismic-sound-lab">Seismic Sound Lab Wave Movies</option>
+          <option value="jhtdb-video">JHTDB Turbulence Videos</option>
+          <option value="cymatics-video">Cymatics Video (YouTube/Kaggle)</option>
+          <option value="chladni-video">Chladni Patterns (MIT OCW)</option>
+          <option value="custom-video">Custom Video URL (MP4/WebM)</option>
+        </select>
+        <p id="dataSourceLink" class="hint"></p>
+        <div id="customVideoWrap" class="control" style="display: none;">
+          <label for="customVideoUrl">Custom Video URL</label>
+          <input id="customVideoUrl" type="text" placeholder="https://.../sample.mp4" />
+        </div>
+        <div class="control check-control">
+        <label for="dataSourceVideoSample">
+          <input id="dataSourceVideoSample" type="checkbox" checked />
+          Video mode sample
+        </label>
+      </div>
+        <p id="dataSourceStatus" class="hint"></p>
+      </div>
+    </div>
     <div class="row">
       <div class="control">
         <label for="mode">Output Mode</label>
@@ -319,6 +433,7 @@
           <option value="floyd">Floyd-Steinberg</option>
           <option value="bayer4">Bayer 4x4</option>
           <option value="random">Random Threshold</option>
+          <option value="ascii">ASCII</option>
         </select>
       </div>
     </div>
@@ -407,13 +522,23 @@
     sourceVideo.playsInline = true;
     sourceVideo.preload = "auto";
 
+    const tabRadios = document.querySelectorAll("input[name='inputMode']");
+    const tabRadioLabels = document.querySelectorAll(".tab-radio");
+
     const controls = {
       fileInput: document.getElementById("fileInput"),
       fileNameText: document.getElementById("fileNameText"),
+      uploadPanel: document.getElementById("uploadPanel"),
+      sourcePanel: document.getElementById("sourcePanel"),
+      dataSource: document.getElementById("dataSource"),
+      dataSourceLink: document.getElementById("dataSourceLink"),
+      customVideoWrap: document.getElementById("customVideoWrap"),
+      customVideoUrl: document.getElementById("customVideoUrl"),
+      dataSourceVideoSample: document.getElementById("dataSourceVideoSample"),
+      dataSourceStatus: document.getElementById("dataSourceStatus"),
       mode: document.getElementById("mode"),
       method: document.getElementById("method"),
       toolPreset: document.getElementById("toolPreset"),
-      toolTitle: document.getElementById("toolTitle"),
       pixelSize: document.getElementById("pixelSize"),
       levels: document.getElementById("levels"),
       contrast: document.getElementById("contrast"),
@@ -466,6 +591,10 @@
       cancelNextRecordingOutput: false,
       exportCount: 0,
       selectedPreset: "pixelation-base",
+      sampleStream: null,
+      sampleRafId: null,
+      sampleSeed: 0,
+      refreshSeed: 0,
     };
 
     const bayer4 = [
@@ -557,6 +686,74 @@
       },
     };
 
+    const dataSources = {
+      "nasa-svs": {
+        desc: "NASA Scientific Visualization Studio (MP4/WebM animations).",
+        url: "https://svs.gsfc.nasa.gov/",
+        prefersVideo: true,
+      },
+      "nasa-image-video": {
+        desc: "NASA Image and Video Library (search & download videos).",
+        url: "https://www.nasa.gov/stem-content/nasa-image-and-video-library/",
+        prefersVideo: true,
+      },
+      "nasa-earth-observatory-video": {
+        desc: "Earth Observatory videos and features.",
+        url: "https://earthobservatory.nasa.gov/",
+        prefersVideo: true,
+      },
+      "nasa-heasarc-video": {
+        desc: "HEASARC video archive (high-energy astrophysics animations).",
+        url: "https://heasarc.gsfc.nasa.gov/docs/heasarc/videos/videos.html",
+        prefersVideo: true,
+      },
+      "nasa-landsat-archive-video": {
+        desc: "Landsat video archives and historical footage.",
+        url: "https://landsat.gsfc.nasa.gov/article/landsat-video-from-the-archives/",
+        prefersVideo: true,
+      },
+      "noaa-ocean-exploration": {
+        desc: "NOAA Ocean Exploration video portal (public domain video).",
+        url: "https://oceanexplorer.noaa.gov/data/access-tools/",
+        prefersVideo: true,
+      },
+      "usgs-shakemovie": {
+        desc: "USGS ShakeMovie animations of seismic wave propagation.",
+        url: "https://www.usgs.gov/centers/earthquake-science-center/multimedia/videos",
+        prefersVideo: true,
+      },
+      "iris-usarray": {
+        desc: "USArray wave visualizations from real earthquake data.",
+        url: "https://www.iris.edu/hq/programs/epo/visualizations",
+        prefersVideo: true,
+      },
+      "seismic-sound-lab": {
+        desc: "Seismic wave field movies with audio from real data.",
+        url: "https://seismicsoundlab.github.io/movies/specfemtohoku/",
+        prefersVideo: true,
+      },
+      "jhtdb-video": {
+        desc: "Turbulence visualization videos (JHTDB).",
+        url: "https://turbulence.pha.jhu.edu/vid2.aspx",
+        prefersVideo: true,
+      },
+      "cymatics-video": {
+        desc: "Cymatics experiment footage and frames (YouTube/Kaggle).",
+        url: "https://www.kaggle.com/",
+        prefersVideo: true,
+      },
+      "chladni-video": {
+        desc: "Chladni pattern lecture/demos (MIT OCW).",
+        url: "https://ocw.mit.edu/",
+        prefersVideo: true,
+      },
+      "custom-video": {
+        desc: "Provide your own MP4/WebM URL.",
+        url: "",
+        prefersVideo: true,
+      },
+    };
+
     function applyToolPreset(name) {
       const preset = toolPresets[name];
       if (!preset) return;
@@ -574,10 +771,807 @@
       processImage();
     }
 
-    function syncToolTitle(presetValue) {
-      const title = presetOptionLabels.get(presetValue);
-      if (!title) return;
-      controls.toolTitle.textContent = title;
+
+    function updateDataSourceInfo() {
+      const selected = dataSources[controls.dataSource.value];
+      if (!selected) {
+        controls.dataSourceLink.textContent = "";
+        controls.dataSourceStatus.textContent = "";
+        controls.customVideoWrap.style.display = "none";
+        return;
+      }
+      if (selected.url) {
+        controls.dataSourceLink.innerHTML = `Source: <a href="${selected.url}" target="_blank" rel="noopener noreferrer">${selected.url}</a>`;
+      } else {
+        controls.dataSourceLink.textContent = "";
+      }
+      controls.dataSourceStatus.textContent = "Use local sample or open source link.";
+      controls.customVideoWrap.style.display = controls.dataSource.value === "custom-video" ? "block" : "none";
+      if (selected.prefersVideo) {
+        controls.dataSourceVideoSample.checked = true;
+      }
+    }
+
+    function stopSampleStream() {
+      if (state.sampleRafId) {
+        cancelAnimationFrame(state.sampleRafId);
+        state.sampleRafId = null;
+      }
+      if (state.sampleStream) {
+        state.sampleStream.getTracks().forEach((t) => t.stop());
+        state.sampleStream = null;
+      }
+    }
+
+    function loadImageFromDataUrl(dataUrl) {
+      stopCurrentMedia();
+      const img = new Image();
+      img.onload = () => {
+        const size = fitSourceSize(img.naturalWidth, img.naturalHeight);
+        state.sourceW = size.w;
+        state.sourceH = size.h;
+        state.original = img;
+        state.sourceType = "image";
+        processImage();
+      };
+      img.src = dataUrl;
+    }
+
+    function makeSampleCanvas() {
+      const c = document.createElement("canvas");
+      c.width = 900;
+      c.height = 560;
+      return c;
+    }
+
+    function createDefaultPlaceholder() {
+      const sample = document.createElement("canvas");
+      sample.width = 900;
+      sample.height = 560;
+      const sctx = sample.getContext("2d");
+
+      const g = sctx.createLinearGradient(0, 0, sample.width, sample.height);
+      g.addColorStop(0, "#f5d68a");
+      g.addColorStop(0.5, "#db7f53");
+      g.addColorStop(1, "#2f2725");
+      sctx.fillStyle = g;
+      sctx.fillRect(0, 0, sample.width, sample.height);
+
+      sctx.fillStyle = "rgba(255,255,255,0.35)";
+      sctx.beginPath();
+      sctx.arc(220, 180, 120, 0, Math.PI * 2);
+      sctx.fill();
+
+      sctx.fillStyle = "rgba(20,20,20,0.35)";
+      sctx.beginPath();
+      sctx.ellipse(630, 330, 190, 120, 0.2, 0, Math.PI * 2);
+      sctx.fill();
+
+      sctx.fillStyle = "rgba(255,255,255,0.8)";
+      sctx.font = "700 64px 'JetBrains Mono', monospace";
+      sctx.fillText("DITHER", 260, 315);
+
+      return sample.toDataURL("image/png");
+    }
+
+    function hashString(s) {
+      let x = 2166136261;
+      for (let i = 0; i < s.length; i++) x = (x ^ s.charCodeAt(i)) * 16777619;
+      return x >>> 0;
+    }
+
+    function makeSeededRngFromSeed(seed) {
+      let x = seed >>> 0;
+      if (!x) x = 123456789;
+      return () => {
+        x ^= x << 13;
+        x ^= x >>> 17;
+        x ^= x << 5;
+        return (x >>> 0) / 4294967296;
+      };
+    }
+
+    function makeSeededRng(key, baseSeed = null) {
+      const seed = baseSeed !== null ? baseSeed : Math.floor(state.sampleSeed * 1e9);
+      return makeSeededRngFromSeed((hashString(key) ^ seed) >>> 0);
+    }
+
+    function getSourceSeed(key) {
+      if (!state.refreshSeed) state.refreshSeed = Math.floor(Math.random() * 1e9);
+      return (hashString(key) ^ state.refreshSeed) >>> 0;
+    }
+
+    function generateWaveformSample(style, rng) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      const palettes = [
+        ["#0b0b0b", "#f2f2f2"],
+        ["#0a0f14", "#9fd3ff"],
+        ["#101012", "#ffd166"],
+      ];
+      const palette = palettes[Math.floor(rng() * palettes.length)];
+      cctx.fillStyle = palette[0];
+      cctx.fillRect(0, 0, c.width, c.height);
+      cctx.strokeStyle = palette[1];
+      cctx.lineWidth = 1.5 + rng() * 1.5;
+      cctx.beginPath();
+      const mid = c.height / 2;
+      const phase = rng() * Math.PI * 2;
+      for (let x = 0; x < c.width; x++) {
+        const t = x / c.width;
+        const ampBase = style === "speech" ? 80 : 120;
+        const freqBase = style === "urban" ? 8 : 5;
+        const amp = ampBase * (0.7 + rng() * 0.6);
+        const freq = freqBase + (rng() * 2 - 1);
+        const y =
+          mid +
+          Math.sin(t * Math.PI * 2 * freq + phase) *
+            amp *
+            (0.55 + 0.45 * Math.sin(t * Math.PI * 2 + phase));
+        if (x === 0) cctx.moveTo(x, y);
+        else cctx.lineTo(x, y);
+      }
+      cctx.stroke();
+      return c;
+    }
+
+    function generateChladniSample(rng) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      cctx.fillStyle = rng() > 0.5 ? "#111" : "#0e0e10";
+      cctx.fillRect(0, 0, c.width, c.height);
+      const mode = Math.floor(rng() * 3);
+      cctx.strokeStyle = "#f2f2f2";
+      cctx.lineWidth = 0.8 + rng() * 1.2;
+      if (mode === 0) {
+        const cols = 6 + Math.floor(rng() * 6);
+        const rows = 5 + Math.floor(rng() * 5);
+        for (let i = 1; i < cols; i++) {
+          cctx.beginPath();
+          cctx.moveTo((c.width / cols) * i, 0);
+          cctx.lineTo((c.width / cols) * i, c.height);
+          cctx.stroke();
+        }
+        for (let j = 1; j < rows; j++) {
+          cctx.beginPath();
+          cctx.moveTo(0, (c.height / rows) * j);
+          cctx.lineTo(c.width, (c.height / rows) * j);
+          cctx.stroke();
+        }
+      } else if (mode === 1) {
+        const kx = 2 + Math.floor(rng() * 5);
+        const ky = 2 + Math.floor(rng() * 4);
+        for (let x = 0; x < c.width; x += 6) {
+          const t = x / c.width;
+          const y = c.height / 2 + Math.sin(t * Math.PI * 2 * kx) * (c.height * 0.25);
+          cctx.beginPath();
+          cctx.moveTo(x, 0);
+          cctx.lineTo(x, y);
+          cctx.stroke();
+        }
+        for (let y = 0; y < c.height; y += 6) {
+          const t = y / c.height;
+          const x = c.width / 2 + Math.sin(t * Math.PI * 2 * ky) * (c.width * 0.2);
+          cctx.beginPath();
+          cctx.moveTo(0, y);
+          cctx.lineTo(x, y);
+          cctx.stroke();
+        }
+      } else {
+        const rings = 10 + Math.floor(rng() * 10);
+        for (let i = 0; i < rings; i++) {
+          const r = 20 + i * (8 + rng() * 6);
+          cctx.beginPath();
+          cctx.ellipse(c.width / 2, c.height / 2, r * (1.3 + rng() * 0.4), r, rng() * Math.PI, 0, Math.PI * 2);
+          cctx.stroke();
+        }
+      }
+      cctx.fillStyle = "rgba(255,255,255,0.5)";
+      for (let k = 0; k < 30; k++) {
+        cctx.fillRect(rng() * c.width, rng() * c.height, 1.2 + rng() * 1.2, 1.2 + rng() * 1.2);
+      }
+      return c;
+    }
+
+    function generateFluidSample(rng) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      const g = cctx.createLinearGradient(0, 0, c.width, c.height);
+      const gradients = [
+        ["#0c1a2b", "#162a3b", "#1f3b4d"],
+        ["#101c2a", "#1b3a4a", "#224b6a"],
+        ["#0a1a1d", "#14303b", "#1a4a57"],
+      ];
+      const palette = gradients[Math.floor(rng() * gradients.length)];
+      g.addColorStop(0, palette[0]);
+      g.addColorStop(0.5, palette[1]);
+      g.addColorStop(1, palette[2]);
+      cctx.fillStyle = g;
+      cctx.fillRect(0, 0, c.width, c.height);
+      cctx.strokeStyle = `rgba(255,255,255,${0.4 + rng() * 0.35})`;
+      const bands = 10 + Math.floor(rng() * 8);
+      for (let i = 0; i < bands; i++) {
+        cctx.beginPath();
+        const y = (c.height / bands) * i + 10 * Math.sin(i + rng());
+        for (let x = 0; x < c.width; x += 8) {
+          const t = x / c.width;
+          const dy = (14 + rng() * 14) * Math.sin(t * Math.PI * (3 + rng() * 3) + i);
+          if (x === 0) cctx.moveTo(x, y + dy);
+          else cctx.lineTo(x, y + dy);
+        }
+        cctx.stroke();
+      }
+      return c;
+    }
+
+    function generateCymaticsSample(rng) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      cctx.fillStyle = "#0a0a0a";
+      cctx.fillRect(0, 0, c.width, c.height);
+      const mode = Math.floor(rng() * 3);
+      cctx.strokeStyle = `rgba(255,255,255,${0.5 + rng() * 0.35})`;
+      if (mode === 0) {
+        const step = 12 + Math.floor(rng() * 10);
+        const twist = rng() * 0.6;
+        for (let r = 20; r < 260; r += step) {
+          cctx.beginPath();
+          cctx.ellipse(c.width / 2, c.height / 2, r * 1.6, r, twist, 0, Math.PI * 2);
+          cctx.stroke();
+        }
+      } else if (mode === 1) {
+        const spokes = 6 + Math.floor(rng() * 8);
+        for (let s = 0; s < spokes; s++) {
+          const angle = (Math.PI * 2 * s) / spokes;
+          cctx.beginPath();
+          for (let r = 20; r < 280; r += 6) {
+            const wobble = 10 * Math.sin(r * 0.08 + rng() * 6);
+            const x = c.width / 2 + Math.cos(angle) * (r + wobble);
+            const y = c.height / 2 + Math.sin(angle) * (r + wobble);
+            if (r === 20) cctx.moveTo(x, y);
+            else cctx.lineTo(x, y);
+          }
+          cctx.stroke();
+        }
+      } else {
+        const lobes = 4 + Math.floor(rng() * 6);
+        for (let i = 0; i < 12; i++) {
+          const r = 30 + i * 18;
+          cctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2 + 0.01; a += Math.PI / 90) {
+            const wave = Math.sin(a * lobes + i * 0.4) * (8 + rng() * 10);
+            const x = c.width / 2 + Math.cos(a) * (r + wave);
+            const y = c.height / 2 + Math.sin(a) * (r + wave);
+            if (a === 0) cctx.moveTo(x, y);
+            else cctx.lineTo(x, y);
+          }
+          cctx.stroke();
+        }
+      }
+      return c;
+    }
+
+    function generateSampleForSource(key, sourceSeed) {
+      const rng = makeSeededRngFromSeed(sourceSeed);
+      if (key === "cymatics-video") return generateCymaticsSample(rng);
+      if (key === "chladni-video") return generateChladniSample(rng);
+      if (key === "nasa-svs") return generateFluidSample(rng);
+      if (key === "nasa-image-video") return generateFluidSample(rng);
+      if (key === "nasa-earth-observatory-video") return generateFluidSample(rng);
+      if (key === "nasa-heasarc-video") return generateWaveformSample("env", rng);
+      if (key === "nasa-landsat-archive-video") return generateFluidSample(rng);
+      if (key === "noaa-ocean-exploration") return generateFluidSample(rng);
+      if (key === "usgs-shakemovie") return generateWaveformSample("env", rng);
+      if (key === "iris-usarray") return generateWaveformSample("env", rng);
+      if (key === "seismic-sound-lab") return generateWaveformSample("urban", rng);
+      if (key === "jhtdb-video") return generateFluidSample(rng);
+      return null;
+    }
+
+    function startVideoSampleFromCanvas(drawFrame) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      let t = 0;
+      const render = () => {
+        drawFrame(cctx, t);
+        t += 1 / 60;
+        state.sampleRafId = requestAnimationFrame(render);
+      };
+      render();
+      const stream = c.captureStream(30);
+      state.sampleStream = stream;
+      return { stream, width: c.width, height: c.height };
+    }
+
+    function loadVideoFromStream(stream, width, height) {
+      state.sourceW = width;
+      state.sourceH = height;
+      state.original = sourceVideo;
+      state.sourceType = "video";
+      setVideoActionEnabled(true);
+      controls.playPauseBtn.textContent = "Pause";
+      sourceVideo.srcObject = stream;
+      const tryPlay = () => {
+        sourceVideo.play().then(() => {
+          startVideoLoop();
+          processImage();
+        }).catch(() => {
+          controls.playPauseBtn.textContent = "Play";
+          processImage();
+        });
+      };
+      sourceVideo.onloadedmetadata = () => {
+        tryPlay();
+      };
+      // In some browsers, metadata doesn't fire for captureStream.
+      setTimeout(tryPlay, 0);
+    }
+
+    function startVideoSampleForSource(key, baseSeed = null) {
+      const drawer = (ctx2d, t) => {
+        ctx2d.clearRect(0, 0, ctx2d.canvas.width, ctx2d.canvas.height);
+        ctx2d.fillStyle = "#0b0b0b";
+        ctx2d.fillRect(0, 0, ctx2d.canvas.width, ctx2d.canvas.height);
+        ctx2d.strokeStyle = "rgba(255,255,255,0.75)";
+        ctx2d.lineWidth = 2;
+        const w = ctx2d.canvas.width;
+        const h = ctx2d.canvas.height;
+        const baseSeedValue = baseSeed !== null ? baseSeed : (hashString(key) ^ Math.floor(state.sampleSeed * 1e9)) >>> 0;
+        const rand = (n) => {
+          const v = Math.sin(n * 12.9898 + baseSeedValue * 0.0001) * 43758.5453;
+          return v - Math.floor(v);
+        };
+        const randT = (n, tt) => {
+          const v = Math.sin(n * 12.9898 + baseSeedValue * 0.0001 + tt * 1.37) * 43758.5453;
+          return v - Math.floor(v);
+        };
+        const variantCount = {
+          "nasa-svs": 3,
+          "nasa-image-video": 3,
+          "nasa-earth-observatory-video": 3,
+          "nasa-heasarc-video": 3,
+          "nasa-landsat-archive-video": 3,
+          "noaa-ocean-exploration": 3,
+          "usgs-shakemovie": 3,
+          "iris-usarray": 3,
+          "seismic-sound-lab": 3,
+          "jhtdb-video": 3,
+          "cymatics-video": 3,
+          "chladni-video": 3,
+        }[key] || 3;
+        const mode = Math.floor(rand(1) * variantCount);
+        const palette = [
+          ["#0b0b0b", "#f2f2f2", "#6ec6ff"],
+          ["#0a0a10", "#ffd166", "#ef476f"],
+          ["#0a0f0b", "#06d6a0", "#118ab2"],
+        ][Math.floor(rand(2) * 3)];
+        ctx2d.fillStyle = palette[0];
+        ctx2d.fillRect(0, 0, w, h);
+        if (key === "chladni-video") {
+          const chMode = mode;
+          ctx2d.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx2d.lineWidth = 1.1 + rand(10);
+          if (chMode === 0) {
+            for (let i = 0; i < 10; i++) {
+              const x = (w / 10) * i + 8 * Math.sin(t + i);
+              ctx2d.beginPath();
+              ctx2d.moveTo(x, 0);
+              ctx2d.lineTo(x, h);
+              ctx2d.stroke();
+            }
+            for (let j = 0; j < 8; j++) {
+              const y = (h / 8) * j + 8 * Math.cos(t + j);
+              ctx2d.beginPath();
+              ctx2d.moveTo(0, y);
+              ctx2d.lineTo(w, y);
+              ctx2d.stroke();
+            }
+          } else if (chMode === 1) {
+            const nodes = 5 + Math.floor(rand(11) * 6);
+            for (let i = 0; i < nodes; i++) {
+              const r = 40 + i * 28;
+              ctx2d.beginPath();
+              ctx2d.ellipse(w / 2, h / 2, r * 1.4, r, t * 0.4 + i * 0.2, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else {
+            const kx = 3 + Math.floor(rand(12) * 5);
+            const ky = 2 + Math.floor(rand(13) * 4);
+            for (let x = 0; x < w; x += 10) {
+              const tt = x / w;
+              const y = h / 2 + Math.sin(tt * Math.PI * 2 * kx + t * 1.2) * (h * 0.25);
+              ctx2d.beginPath();
+              ctx2d.moveTo(x, 0);
+              ctx2d.lineTo(x, y);
+              ctx2d.stroke();
+            }
+            for (let y = 0; y < h; y += 10) {
+              const tt = y / h;
+              const x = w / 2 + Math.sin(tt * Math.PI * 2 * ky + t * 0.9) * (w * 0.2);
+              ctx2d.beginPath();
+              ctx2d.moveTo(0, y);
+              ctx2d.lineTo(x, y);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "cymatics-video") {
+          const cyMode = mode;
+          ctx2d.strokeStyle = "rgba(255,255,255,0.8)";
+          if (cyMode === 0) {
+            for (let r = 20; r < 260; r += 12) {
+              ctx2d.beginPath();
+              const wobble = 0.08 * Math.sin(t + r / 20);
+              ctx2d.ellipse(w / 2, h / 2, r * 1.6, r, t * 0.3 + wobble, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else if (cyMode === 1) {
+            const spokes = 6 + Math.floor(rand(15) * 8);
+            for (let s = 0; s < spokes; s++) {
+              const angle = (Math.PI * 2 * s) / spokes + t * 0.1;
+              ctx2d.beginPath();
+              for (let r = 20; r < 280; r += 6) {
+                const wobble = 8 * Math.sin(t * 2 + r * 0.08 + s);
+                const x = w / 2 + Math.cos(angle) * (r + wobble);
+                const y = h / 2 + Math.sin(angle) * (r + wobble);
+                if (r === 20) ctx2d.moveTo(x, y);
+                else ctx2d.lineTo(x, y);
+              }
+              ctx2d.stroke();
+            }
+          } else {
+            const lobes = 4 + Math.floor(rand(16) * 6);
+            for (let i = 0; i < 10; i++) {
+              const r = 30 + i * 18;
+              ctx2d.beginPath();
+              for (let a = 0; a <= Math.PI * 2 + 0.01; a += Math.PI / 90) {
+                const wave = Math.sin(a * lobes + t * 2 + i * 0.4) * (8 + randT(i, t) * 10);
+                const x = w / 2 + Math.cos(a) * (r + wave);
+                const y = h / 2 + Math.sin(a) * (r + wave);
+                if (a === 0) ctx2d.moveTo(x, y);
+                else ctx2d.lineTo(x, y);
+              }
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "nasa-svs" || key === "nasa-image-video") {
+          const svsMode = mode;
+          if (svsMode === 0) {
+            ctx2d.strokeStyle = "rgba(120,200,255,0.8)";
+            ctx2d.lineWidth = 1.5;
+            for (let i = 0; i < 6; i++) {
+              ctx2d.beginPath();
+              const r = 80 + i * 35;
+              ctx2d.ellipse(w / 2, h / 2, r * 1.2, r, t * 0.2 + i, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+            ctx2d.fillStyle = "rgba(255,255,255,0.8)";
+            ctx2d.beginPath();
+            ctx2d.arc(w / 2 + Math.cos(t) * 120, h / 2 + Math.sin(t) * 60, 6, 0, Math.PI * 2);
+            ctx2d.fill();
+          } else if (svsMode === 1) {
+            ctx2d.strokeStyle = "rgba(160,220,255,0.7)";
+            for (let i = 0; i < 12; i++) {
+              const ang = (Math.PI * 2 * i) / 12 + t * 0.2;
+              ctx2d.beginPath();
+              ctx2d.moveTo(w / 2, h / 2);
+              ctx2d.lineTo(w / 2 + Math.cos(ang) * (140 + 40 * Math.sin(t + i)), h / 2 + Math.sin(ang) * (90 + 30 * Math.cos(t + i)));
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(100,180,255,0.8)";
+            for (let i = 0; i < 9; i++) {
+              ctx2d.beginPath();
+              const y = (h / 9) * i + 20 * Math.sin(t + i);
+              for (let x = 0; x < w; x += 12) {
+                const dy = 16 * Math.sin(x / 80 + t * 1.3 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "nasa-earth-observatory-video") {
+          const eoMode = mode;
+          if (eoMode === 0) {
+            ctx2d.strokeStyle = "rgba(120,255,180,0.8)";
+            ctx2d.lineWidth = 1.2;
+            for (let i = 0; i < 12; i++) {
+              ctx2d.beginPath();
+              const y = (h / 12) * i + 10 * Math.sin(t + i * 0.7);
+              for (let x = 0; x < w; x += 10) {
+                const dy = 8 * Math.sin(t * 1.5 + x / 60 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          } else if (eoMode === 1) {
+            ctx2d.strokeStyle = "rgba(140,220,180,0.7)";
+            for (let i = 0; i < 6; i++) {
+              ctx2d.beginPath();
+              const r = 60 + i * 40;
+              ctx2d.ellipse(w / 2, h / 2, r * 1.8, r, t * 0.15, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(120,255,200,0.7)";
+            for (let i = 0; i < 14; i++) {
+              ctx2d.beginPath();
+              const x = (w / 14) * i + 12 * Math.cos(t + i);
+              ctx2d.moveTo(x, 0);
+              ctx2d.lineTo(x, h);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "noaa-ocean-exploration") {
+          const oceanMode = mode;
+          if (oceanMode === 0) {
+            ctx2d.strokeStyle = palette[2];
+            ctx2d.lineWidth = 1.5;
+            for (let i = 0; i < 10; i++) {
+              ctx2d.beginPath();
+              const baseY = (h / 10) * i + 8 * Math.sin(t + i);
+              for (let x = 0; x < w; x += 8) {
+                const tt = x / w;
+                const dy = 18 * Math.sin(tt * Math.PI * 6 + t * 2 + i);
+                if (x === 0) ctx2d.moveTo(x, baseY + dy);
+                else ctx2d.lineTo(x, baseY + dy);
+              }
+              ctx2d.stroke();
+            }
+          } else if (oceanMode === 1) {
+            ctx2d.strokeStyle = "rgba(120,220,255,0.7)";
+            for (let i = 0; i < 7; i++) {
+              ctx2d.beginPath();
+              const r = 40 + i * 35;
+              ctx2d.arc(w / 2, h / 2, r + 10 * Math.sin(t * 1.4 + i), 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(100,200,220,0.7)";
+            for (let i = 0; i < 12; i++) {
+              ctx2d.beginPath();
+              const y = (h / 12) * i + 16 * Math.sin(t * 0.8 + i);
+              for (let x = 0; x < w; x += 12) {
+                const dy = 10 * Math.cos(t + x / 50 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "usgs-shakemovie") {
+          const usgsMode = mode;
+          if (usgsMode === 0) {
+            ctx2d.strokeStyle = palette[1];
+            ctx2d.lineWidth = 2;
+            for (let r = 40; r < 320; r += 28) {
+              ctx2d.beginPath();
+              const pulse = r + 20 * Math.sin(t * 2 + r / 30);
+              ctx2d.arc(w / 2, h / 2, pulse, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else if (usgsMode === 1) {
+            ctx2d.strokeStyle = "rgba(255,140,120,0.8)";
+            for (let i = 0; i < 18; i++) {
+              const ang = (Math.PI * 2 * i) / 18 + t * 0.3;
+              ctx2d.beginPath();
+              ctx2d.moveTo(w / 2, h / 2);
+              ctx2d.lineTo(w / 2 + Math.cos(ang) * 220, h / 2 + Math.sin(ang) * 140);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(255,160,140,0.8)";
+            for (let i = 0; i < 10; i++) {
+              ctx2d.beginPath();
+              const y = (h / 10) * i + 12 * Math.sin(t + i);
+              for (let x = 0; x < w; x += 10) {
+                const dy = 14 * Math.sin(t * 2 + x / 80 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "iris-usarray") {
+          const irisMode = mode;
+          if (irisMode === 0) {
+            ctx2d.strokeStyle = palette[2];
+            ctx2d.lineWidth = 1.2;
+            for (let i = 0; i < 16; i++) {
+              ctx2d.beginPath();
+              for (let x = 0; x < w; x += 10) {
+                const tt = x / w;
+                const y = h / 2 + Math.sin(tt * Math.PI * 2 * 3 + t + i * 0.2) * (20 + i);
+                if (x === 0) ctx2d.moveTo(x, y);
+                else ctx2d.lineTo(x, y);
+              }
+              ctx2d.stroke();
+            }
+          } else if (irisMode === 1) {
+            ctx2d.strokeStyle = "rgba(140,220,255,0.7)";
+            for (let i = 0; i < 8; i++) {
+              ctx2d.beginPath();
+              const r = 60 + i * 30;
+              ctx2d.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(160,240,255,0.8)";
+            for (let i = 0; i < 12; i++) {
+              const x = (w / 12) * i + 10 * Math.sin(t + i);
+              ctx2d.beginPath();
+              ctx2d.moveTo(x, 0);
+              ctx2d.lineTo(x, h);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "seismic-sound-lab") {
+          const labMode = mode;
+          if (labMode === 0) {
+            const size = 24;
+            for (let y = 0; y < h; y += size) {
+              for (let x = 0; x < w; x += size) {
+                const on = (x / size + y / size + Math.floor(t * 4)) % 2 === 0;
+                ctx2d.fillStyle = on ? palette[2] : palette[0];
+                ctx2d.fillRect(x, y, size - 2, size - 2);
+              }
+            }
+          } else if (labMode === 1) {
+            ctx2d.strokeStyle = "rgba(200,220,255,0.7)";
+            for (let i = 0; i < 20; i++) {
+              ctx2d.beginPath();
+              const y = (h / 20) * i + 6 * Math.sin(t * 1.6 + i);
+              ctx2d.moveTo(0, y);
+              ctx2d.lineTo(w, y);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(140,200,255,0.7)";
+            for (let i = 0; i < 12; i++) {
+              const ang = (Math.PI * 2 * i) / 12 + t * 0.2;
+              ctx2d.beginPath();
+              ctx2d.moveTo(w / 2, h / 2);
+              ctx2d.lineTo(w / 2 + Math.cos(ang) * 200, h / 2 + Math.sin(ang) * 140);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "jhtdb-video") {
+          const jhMode = mode;
+          if (jhMode === 0) {
+            ctx2d.strokeStyle = palette[1];
+            ctx2d.lineWidth = 1.5;
+            for (let i = 0; i < 40; i++) {
+              const x = (i * 37 + t * 80) % w;
+              const y = (i * 59 + t * 50) % h;
+              ctx2d.beginPath();
+              ctx2d.arc(x, y, 8 + 6 * Math.sin(t + i), 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else if (jhMode === 1) {
+            ctx2d.strokeStyle = "rgba(255,180,120,0.7)";
+            for (let i = 0; i < 14; i++) {
+              ctx2d.beginPath();
+              const y = (h / 14) * i + 12 * Math.sin(t * 1.2 + i);
+              for (let x = 0; x < w; x += 12) {
+                const dy = 10 * Math.cos(t * 0.8 + x / 60 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(255,200,140,0.7)";
+            for (let i = 0; i < 18; i++) {
+              const ang = (Math.PI * 2 * i) / 18 + t * 0.25;
+              ctx2d.beginPath();
+              ctx2d.moveTo(w / 2, h / 2);
+              ctx2d.lineTo(w / 2 + Math.cos(ang) * 200, h / 2 + Math.sin(ang) * 120);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "nasa-heasarc-video") {
+          const heaMode = mode;
+          if (heaMode === 0) {
+            ctx2d.fillStyle = "rgba(255,255,255,0.8)";
+            for (let i = 0; i < 160; i++) {
+              const x = (i * 73 + t * 40) % w;
+              const y = (i * 131 + t * 20) % h;
+              ctx2d.fillRect(x, y, 1.2, 1.2);
+            }
+            ctx2d.strokeStyle = "rgba(255,180,120,0.9)";
+            ctx2d.lineWidth = 2;
+            ctx2d.beginPath();
+            const pulse = 40 + 20 * Math.sin(t * 4);
+            ctx2d.arc(w / 2, h / 2, pulse, 0, Math.PI * 2);
+            ctx2d.stroke();
+          } else if (heaMode === 1) {
+            ctx2d.strokeStyle = "rgba(255,220,180,0.7)";
+            for (let i = 0; i < 12; i++) {
+              ctx2d.beginPath();
+              const r = 40 + i * 26;
+              ctx2d.ellipse(w / 2, h / 2, r * 1.2, r, t * 0.35 + i * 0.1, 0, Math.PI * 2);
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(255,200,160,0.7)";
+            for (let i = 0; i < 20; i++) {
+              const ang = (Math.PI * 2 * i) / 20 + t * 0.3;
+              ctx2d.beginPath();
+              ctx2d.moveTo(w / 2, h / 2);
+              ctx2d.lineTo(w / 2 + Math.cos(ang) * 220, h / 2 + Math.sin(ang) * 160);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        if (key === "nasa-landsat-archive-video") {
+          const landMode = mode;
+          if (landMode === 0) {
+            ctx2d.fillStyle = "rgba(80,140,220,0.5)";
+            ctx2d.fillRect(0, 0, w, h);
+            ctx2d.fillStyle = "rgba(255,255,255,0.35)";
+            const stripeH = 28;
+            for (let y = 0; y < h; y += stripeH * 2) {
+              const offset = (t * 30) % (stripeH * 2);
+              ctx2d.fillRect(0, y + offset, w, stripeH);
+            }
+          } else if (landMode === 1) {
+            ctx2d.strokeStyle = "rgba(140,200,255,0.6)";
+            for (let i = 0; i < 10; i++) {
+              ctx2d.beginPath();
+              const y = (h / 10) * i + 20 * Math.sin(t + i);
+              for (let x = 0; x < w; x += 14) {
+                const dy = 12 * Math.cos(t * 1.2 + x / 70 + i);
+                if (x === 0) ctx2d.moveTo(x, y + dy);
+                else ctx2d.lineTo(x, y + dy);
+              }
+              ctx2d.stroke();
+            }
+          } else {
+            ctx2d.strokeStyle = "rgba(120,200,255,0.7)";
+            for (let i = 0; i < 14; i++) {
+              const x = (w / 14) * i + 12 * Math.sin(t + i);
+              ctx2d.beginPath();
+              ctx2d.moveTo(x, 0);
+              ctx2d.lineTo(x, h);
+              ctx2d.stroke();
+            }
+          }
+          return;
+        }
+        // fallback waveform
+        const mid = h / 2;
+        const amp = key === "urbansound8k" ? 110 : 120;
+        const freq = key === "urbansound8k" ? 9 : 5;
+        ctx2d.beginPath();
+        for (let x = 0; x < w; x++) {
+          const tt = x / w;
+          const y = mid + Math.sin(tt * Math.PI * 2 * freq + t * 2) * amp * (0.6 + 0.4 * Math.sin(tt * Math.PI * 2 + t));
+          if (x === 0) ctx2d.moveTo(x, y);
+          else ctx2d.lineTo(x, y);
+        }
+        ctx2d.stroke();
+      };
+      return startVideoSampleFromCanvas(drawer);
     }
 
     function syncMenuSelectionForOpen() {
@@ -587,6 +1581,33 @@
     function quantize(v, levels) {
       const step = 255 / (levels - 1);
       return Math.round(v / step) * step;
+    }
+
+    function renderAscii(lum, data, w, h, pixelSize, mode) {
+      const chars = " .,:;irsXA253hMHGS#9B&@";
+      const fontSize = Math.max(8, Math.floor(pixelSize * 1.35));
+      canvas.width = w * pixelSize;
+      canvas.height = h * pixelSize;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
+      ctx.textBaseline = "top";
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const p = y * w + x;
+          const i = p * 4;
+          const v = clamp(Math.round(lum[p]), 0, 255);
+          const idx = Math.floor((v / 255) * (chars.length - 1));
+          const ch = chars[idx];
+          if (mode === "rgb") {
+            ctx.fillStyle = `rgb(${data[i]}, ${data[i + 1]}, ${data[i + 2]})`;
+          } else {
+            ctx.fillStyle = "#f2f2f2";
+          }
+          ctx.fillText(ch, x * pixelSize, y * pixelSize);
+        }
+      }
     }
 
     function updateValueLabels() {
@@ -773,6 +1794,10 @@
           applyBayerRGB(data, srcW, srcH, levels);
         }
       } else {
+        if (method === "ascii") {
+          renderAscii(lum, data, srcW, srcH, pixelSize, mode);
+          return;
+        }
         if (mode === "mono") {
           for (let y = 0; y < srcH; y++) {
             for (let x = 0; x < srcW; x++) {
@@ -973,8 +1998,10 @@
     function stopCurrentMedia() {
       stopRecording();
       stopVideoLoop();
+      stopSampleStream();
       sourceVideo.pause();
       sourceVideo.removeAttribute("src");
+      sourceVideo.srcObject = null;
       sourceVideo.load();
       clearActiveObjectURL();
       controls.playPauseBtn.disabled = true;
@@ -1149,6 +2176,51 @@
       return parts.join("\n");
     }
 
+    function storeUiState() {
+      const params = new URLSearchParams();
+      params.set("mode", controls.mode.value);
+      params.set("method", controls.method.value);
+      params.set("pixel", controls.pixelSize.value);
+      params.set("levels", controls.levels.value);
+      params.set("contrast", controls.contrast.value);
+      params.set("brightness", controls.brightness.value);
+      params.set("gamma", controls.gamma.value);
+      params.set("noise", controls.noise.value);
+      params.set("blur", controls.blur.value);
+      params.set("black", controls.blackPoint.value);
+      params.set("white", controls.whitePoint.value);
+      params.set("svgBlackOnly", controls.svgBlackOnly.checked ? "1" : "0");
+      params.set("videoSample", controls.dataSourceVideoSample.checked ? "1" : "0");
+      localStorage.setItem("pixelation-ui", params.toString());
+    }
+
+    function restoreUiState() {
+      const saved = localStorage.getItem("pixelation-ui");
+      if (!saved) return false;
+      const params = new URLSearchParams(saved);
+      const applyIf = (key, el) => {
+        const v = params.get(key);
+        if (v === null) return;
+        el.value = v;
+      };
+      applyIf("mode", controls.mode);
+      applyIf("method", controls.method);
+      applyIf("pixel", controls.pixelSize);
+      applyIf("levels", controls.levels);
+      applyIf("contrast", controls.contrast);
+      applyIf("brightness", controls.brightness);
+      applyIf("gamma", controls.gamma);
+      applyIf("noise", controls.noise);
+      applyIf("blur", controls.blur);
+      applyIf("black", controls.blackPoint);
+      applyIf("white", controls.whitePoint);
+      const svgBlackOnly = params.get("svgBlackOnly");
+      if (svgBlackOnly !== null) controls.svgBlackOnly.checked = svgBlackOnly === "1";
+      const videoSample = params.get("videoSample");
+      if (videoSample !== null) controls.dataSourceVideoSample.checked = videoSample === "1";
+      return true;
+    }
+
     controls.fileInput.addEventListener("change", (e) => {
       const file = e.target.files?.[0];
       if (!file) {
@@ -1163,9 +2235,52 @@
       loadImageFromFile(file);
     });
 
+    function setTab(tab, skipAutoLoad = false) {
+      const isUpload = tab === "upload";
+      tabRadioLabels.forEach((label) => {
+        const input = label.querySelector("input");
+        label.classList.toggle("active", input && input.value === tab);
+      });
+      controls.uploadPanel.classList.toggle("active", isUpload);
+      controls.sourcePanel.classList.toggle("active", !isUpload);
+      if (isUpload) {
+        if (!skipAutoLoad) {
+          controls.dataSource.value = "";
+          updateDataSourceInfo();
+        }
+        if (!controls.fileInput.value) {
+          loadImageFromDataUrl(createDefaultPlaceholder());
+        }
+        if (!skipAutoLoad) {
+          const next = window.location.pathname;
+          window.history.replaceState({}, "", next);
+        }
+      } else {
+        if (!skipAutoLoad) {
+          stopCurrentMedia();
+          controls.fileInput.value = "";
+          controls.fileNameText.textContent = "No file selected";
+        }
+      }
+    }
+
+    tabRadios.forEach((radio) => {
+      radio.addEventListener("change", (e) => {
+        const value = e.target.value;
+        setTab(value);
+        if (value === "source") {
+          updateDataSourceInfo();
+          if (controls.dataSource.value) loadSampleForSelection();
+        }
+      });
+    });
+
     Object.values(controls).forEach((el) => {
+      if (!el || typeof el.addEventListener !== "function") return;
       if (
         el === controls.fileInput ||
+        el === controls.dataSource ||
+        el === controls.dataSourceLink ||
         el === controls.toolPreset ||
         el === controls.downloadBtn ||
         el === controls.downloadSvgBtn ||
@@ -1178,16 +2293,175 @@
       el.addEventListener("change", processImage);
     });
 
+    const persistInputs = [
+      controls.mode,
+      controls.method,
+      controls.pixelSize,
+      controls.levels,
+      controls.contrast,
+      controls.brightness,
+      controls.gamma,
+      controls.noise,
+      controls.blur,
+      controls.blackPoint,
+      controls.whitePoint,
+      controls.svgBlackOnly,
+      controls.dataSourceVideoSample,
+    ];
+    persistInputs.forEach((el) => {
+      el.addEventListener("change", storeUiState);
+      el.addEventListener("input", storeUiState);
+    });
+
     controls.toolPreset.addEventListener("change", () => {
       const presetValue = controls.toolPreset.value;
       if (!presetValue) return;
       state.selectedPreset = presetValue;
       applyToolPreset(presetValue);
-      syncToolTitle(presetValue);
+      storeUiState();
       setTimeout(() => {
         controls.toolPreset.value = "";
       }, 0);
     });
+
+    function persistSelectionToUrl() {
+      const params = new URLSearchParams(window.location.search);
+      params.set("source", controls.dataSource.value || "");
+      params.set("video", controls.dataSourceVideoSample.checked ? "1" : "0");
+      if (controls.customVideoUrl.value) {
+        params.set("url", controls.customVideoUrl.value);
+      } else {
+        params.delete("url");
+      }
+      const next = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, "", next);
+    }
+
+    function restoreSelectionFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const source = params.get("source");
+      const video = params.get("video");
+      const url = params.get("url");
+      if (source) {
+        tabRadios.forEach((radio) => {
+          radio.checked = radio.value === "source";
+        });
+        setTab("source", true);
+        controls.dataSource.value = source;
+        if (video === "1") controls.dataSourceVideoSample.checked = true;
+        if (video === "0") controls.dataSourceVideoSample.checked = false;
+        if (url) controls.customVideoUrl.value = url;
+        updateDataSourceInfo();
+        // ensure placeholder doesn't stay if video sample takes a beat to start
+        stopCurrentMedia();
+        requestAnimationFrame(() => {
+          loadSampleForSelection();
+          if (controls.dataSourceVideoSample.checked) {
+            setTimeout(() => {
+              if (state.sourceType !== "video") loadSampleForSelection();
+            }, 200);
+          }
+        });
+      }
+    }
+
+    controls.dataSource.addEventListener("change", () => {
+      updateDataSourceInfo();
+      loadSampleForSelection();
+      persistSelectionToUrl();
+      storeUiState();
+    });
+
+    function loadSampleForSelection(forceStill = false) {
+      const key = controls.dataSource.value;
+      if (!key) {
+        controls.dataSourceStatus.textContent = "";
+        return;
+      }
+      const selected = dataSources[key];
+      if (!state.sampleSeed) state.sampleSeed = Math.random();
+      const sourceSeed = getSourceSeed(key);
+      if (key === "custom-video") {
+        const url = (controls.customVideoUrl.value || "").trim();
+        if (!url) {
+          controls.dataSourceStatus.textContent = "Paste a video URL first.";
+          return;
+        }
+        stopCurrentMedia();
+        sourceVideo.srcObject = null;
+        sourceVideo.src = url;
+        sourceVideo.onloadedmetadata = () => {
+          const size = fitSourceSize(sourceVideo.videoWidth, sourceVideo.videoHeight);
+          state.sourceW = size.w;
+          state.sourceH = size.h;
+          state.original = sourceVideo;
+          state.sourceType = "video";
+          setVideoActionEnabled(true);
+          controls.playPauseBtn.textContent = "Pause";
+          sourceVideo.play().then(() => {
+            startVideoLoop();
+            processImage();
+          }).catch(() => {
+            controls.playPauseBtn.textContent = "Play";
+            processImage();
+          });
+        };
+        controls.dataSourceStatus.textContent = "Loaded custom video URL.";
+        return;
+      }
+      if (!forceStill && controls.dataSourceVideoSample.checked) {
+        stopCurrentMedia();
+        const videoSample = startVideoSampleForSource(key, sourceSeed);
+        if (!videoSample) {
+          controls.dataSourceStatus.textContent = "No local video sample available for this source.";
+          return;
+        }
+        controls.dataSourceStatus.textContent = "Loaded local video sample.";
+        loadVideoFromStream(videoSample.stream, videoSample.width, videoSample.height);
+      } else {
+        const sample = generateSampleForSource(key, sourceSeed);
+        if (!sample) {
+          if (selected && selected.prefersVideo) {
+            stopCurrentMedia();
+            const videoSample = startVideoSampleForSource(key, sourceSeed);
+            if (!videoSample) {
+              controls.dataSourceStatus.textContent = "No local sample available for this source.";
+              return;
+            }
+            controls.dataSourceStatus.textContent = "Loaded local video sample.";
+            loadVideoFromStream(videoSample.stream, videoSample.width, videoSample.height);
+            return;
+          }
+          controls.dataSourceStatus.textContent = "No local sample available for this source.";
+          return;
+        }
+        controls.dataSourceStatus.textContent = "Loaded local sample.";
+        loadImageFromDataUrl(sample.toDataURL("image/png"));
+      }
+    }
+
+    controls.customVideoUrl.addEventListener("change", () => {
+      if (controls.dataSource.value === "custom-video") {
+        loadSampleForSelection();
+        persistSelectionToUrl();
+        storeUiState();
+      }
+    });
+
+    controls.dataSourceVideoSample.addEventListener("change", () => {
+      if (!controls.dataSource.value) return;
+      if (!controls.dataSourceVideoSample.checked) {
+        stopCurrentMedia();
+        loadSampleForSelection(true);
+        persistSelectionToUrl();
+        storeUiState();
+        return;
+      }
+      loadSampleForSelection();
+      persistSelectionToUrl();
+      storeUiState();
+    });
+
 
     controls.toolPreset.addEventListener("mousedown", () => {
       syncMenuSelectionForOpen();
@@ -1262,46 +2536,32 @@
     });
 
     (function initPlaceholder() {
-      const sample = document.createElement("canvas");
-      sample.width = 900;
-      sample.height = 560;
-      const sctx = sample.getContext("2d");
-
-      const g = sctx.createLinearGradient(0, 0, sample.width, sample.height);
-      g.addColorStop(0, "#f5d68a");
-      g.addColorStop(0.5, "#db7f53");
-      g.addColorStop(1, "#2f2725");
-      sctx.fillStyle = g;
-      sctx.fillRect(0, 0, sample.width, sample.height);
-
-      sctx.fillStyle = "rgba(255,255,255,0.35)";
-      sctx.beginPath();
-      sctx.arc(220, 180, 120, 0, Math.PI * 2);
-      sctx.fill();
-
-      sctx.fillStyle = "rgba(20,20,20,0.35)";
-      sctx.beginPath();
-      sctx.ellipse(630, 330, 190, 120, 0.2, 0, Math.PI * 2);
-      sctx.fill();
-
-      sctx.fillStyle = "rgba(255,255,255,0.8)";
-      sctx.font = "700 64px 'JetBrains Mono', monospace";
-      sctx.fillText("DITHER", 260, 315);
-
-      const img = new Image();
-      img.onload = () => {
-        const size = fitSourceSize(img.naturalWidth, img.naturalHeight);
-        state.original = img;
-        state.sourceType = "image";
-        state.sourceW = size.w;
-        state.sourceH = size.h;
-        processImage();
-      };
-      img.src = sample.toDataURL("image/png");
-      applyToolPreset("pixelation-base");
-      syncToolTitle("pixelation-base");
+      const params = new URLSearchParams(window.location.search);
+      const source = params.get("source");
+      const derivedSeed = Math.floor(Math.random() * 1e9);
+      state.sampleSeed = derivedSeed / 1e9;
+      state.refreshSeed = derivedSeed;
+      const restored = restoreUiState();
+      if (!source) {
+        const img = new Image();
+        img.onload = () => {
+          const size = fitSourceSize(img.naturalWidth, img.naturalHeight);
+          state.original = img;
+          state.sourceType = "image";
+          state.sourceW = size.w;
+          state.sourceH = size.h;
+          processImage();
+        };
+        img.src = createDefaultPlaceholder();
+      }
+      if (!restored) {
+        applyToolPreset("pixelation-base");
+      }
       controls.toolPreset.value = "";
+      updateDataSourceInfo();
     })();
+
+    restoreSelectionFromUrl();
   </script>
 </body>
 </html>
