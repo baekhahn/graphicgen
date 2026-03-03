@@ -324,6 +324,129 @@
       border-color: #4a4a4a;
     }
 
+    .palette-control {
+      display: none;
+    }
+    .palette-control.active {
+      display: block;
+    }
+    .palette-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .palette-chip {
+      display: grid;
+      gap: 6px;
+      align-items: center;
+      justify-items: center;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .chip-swatch {
+      width: 100%;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .color-popover {
+      position: fixed;
+      z-index: 50;
+      min-width: 220px;
+      background: #141414;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+    }
+    .color-popover-header {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .color-picker {
+      display: grid;
+      gap: 8px;
+    }
+    .sv-canvas {
+      width: 100%;
+      height: 140px;
+      border-radius: 10px;
+      cursor: crosshair;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .hue-row {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      gap: 8px;
+    }
+    .color-preview {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #fff;
+    }
+    .hue-slider {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      appearance: none;
+      background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .hue-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #111;
+      cursor: pointer;
+    }
+    .hue-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #111;
+      cursor: pointer;
+    }
+    .color-hex-input {
+      width: 100%;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: #0f0f0f;
+      color: #fff;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      padding: 0 8px;
+      text-transform: lowercase;
+      outline: none;
+    }
+    .color-swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .color-swatch-btn {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
     .file-name {
       color: var(--muted);
       font-size: 11px;
@@ -390,26 +513,13 @@
       <div class="control">
         <label for="dataSource">Data Source</label>
         <select id="dataSource">
-          <option value="">None (upload or manual)</option>
-          <option value="nasa-svs">NASA SVS (Scientific Visualization Studio)</option>
-          <option value="nasa-image-video">NASA Image & Video Library</option>
-          <option value="nasa-earth-observatory-video">NASA Earth Observatory Videos</option>
-          <option value="nasa-heasarc-video">NASA HEASARC Video Archive</option>
-          <option value="nasa-landsat-archive-video">NASA Landsat Archive Video</option>
-          <option value="noaa-ocean-exploration">NOAA Ocean Exploration Video Portal</option>
-          <option value="usgs-shakemovie">USGS ShakeMovie (Seismic Waves)</option>
-          <option value="iris-usarray">IRIS USArray Wave Visualizations</option>
-          <option value="seismic-sound-lab">Seismic Sound Lab Wave Movies</option>
-          <option value="jhtdb-video">JHTDB Turbulence Videos</option>
-          <option value="cymatics-video">Cymatics Video (YouTube/Kaggle)</option>
-          <option value="chladni-video">Chladni Patterns (MIT OCW)</option>
-          <option value="custom-video">Custom Video URL (MP4/WebM)</option>
+          <option value="nasa-svs-atmosphere">1. NASA SVS: Atmosphere & Weather</option>
+          <option value="noaa-goes-earth-orbit">2. NOAA GOES: Earth from Orbit</option>
+          <option value="noaa-goes-16-videos">3. NOAA GOES-16 Data & Imagery Videos</option>
+          <option value="nasa-image-video">4. NASA Image & Video Library</option>
+          <option value="usgs-earthquake">5. USGS Earthquake Hazards Videos</option>
         </select>
         <p id="dataSourceLink" class="hint"></p>
-        <div id="customVideoWrap" class="control" style="display: none;">
-          <label for="customVideoUrl">Custom Video URL</label>
-          <input id="customVideoUrl" type="text" placeholder="https://.../sample.mp4" />
-        </div>
         <div class="control check-control">
         <label for="dataSourceVideoSample">
           <input id="dataSourceVideoSample" type="checkbox" checked />
@@ -434,13 +544,71 @@
           <option value="bayer4">Bayer 4x4</option>
           <option value="random">Random Threshold</option>
           <option value="ascii">ASCII</option>
+          <option value="shape-mosaic">Shape Mosaic</option>
         </select>
+      </div>
+    </div>
+
+    <div id="paletteRow" class="control palette-control">
+      <label>Color Chips (RGB)</label>
+      <div class="palette-row">
+        <div class="palette-chip">
+          <button id="chip1Btn" class="chip-swatch" type="button" data-chip="1"></button>
+          <input id="chip1" type="hidden" value="#d06020" />
+          <div id="chip1Hex">#d06020</div>
+        </div>
+        <div class="palette-chip">
+          <button id="chip2Btn" class="chip-swatch" type="button" data-chip="2"></button>
+          <input id="chip2" type="hidden" value="#58b068" />
+          <div id="chip2Hex">#58b068</div>
+        </div>
+        <div class="palette-chip">
+          <button id="chip3Btn" class="chip-swatch" type="button" data-chip="3"></button>
+          <input id="chip3" type="hidden" value="#3868d8" />
+          <div id="chip3Hex">#3868d8</div>
+        </div>
+        <div class="palette-chip">
+          <button id="chip4Btn" class="chip-swatch" type="button" data-chip="4"></button>
+          <input id="chip4" type="hidden" value="#e8c840" />
+          <div id="chip4Hex">#e8c840</div>
+        </div>
+        <div class="palette-chip">
+          <button id="chip5Btn" class="chip-swatch" type="button" data-chip="5"></button>
+          <input id="chip5" type="hidden" value="#182890" />
+          <div id="chip5Hex">#182890</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="colorPopover" class="color-popover" hidden>
+      <div class="color-popover-header">HEX</div>
+      <div class="color-picker">
+        <canvas id="svCanvas" class="sv-canvas" width="220" height="140"></canvas>
+        <div class="hue-row">
+          <div id="colorPreview" class="color-preview"></div>
+          <input id="hueSlider" class="hue-slider" type="range" min="0" max="360" value="0" />
+        </div>
+        <input id="colorHexInput" class="color-hex-input" type="text" value="#ffffff" />
+      </div>
+      <div class="color-swatch-grid">
+        <button class="color-swatch-btn" data-color="#ff3b30" style="background:#ff3b30"></button>
+        <button class="color-swatch-btn" data-color="#ff9500" style="background:#ff9500"></button>
+        <button class="color-swatch-btn" data-color="#ffcc00" style="background:#ffcc00"></button>
+        <button class="color-swatch-btn" data-color="#34c759" style="background:#34c759"></button>
+        <button class="color-swatch-btn" data-color="#00c7be" style="background:#00c7be"></button>
+        <button class="color-swatch-btn" data-color="#007aff" style="background:#007aff"></button>
+        <button class="color-swatch-btn" data-color="#5856d6" style="background:#5856d6"></button>
+        <button class="color-swatch-btn" data-color="#af52de" style="background:#af52de"></button>
+        <button class="color-swatch-btn" data-color="#ff2d55" style="background:#ff2d55"></button>
+        <button class="color-swatch-btn" data-color="#ff6b00" style="background:#ff6b00"></button>
+        <button class="color-swatch-btn" data-color="#0a0a0a" style="background:#0a0a0a"></button>
+        <button class="color-swatch-btn" data-color="#1c1c1e" style="background:#1c1c1e"></button>
       </div>
     </div>
 
     <div class="control">
       <label for="pixelSize">Pixel Size <span id="pixelSizeVal"></span></label>
-      <input id="pixelSize" type="range" min="1" max="12" value="4" />
+      <input id="pixelSize" type="range" min="1" max="32" value="4" />
     </div>
 
     <div class="control">
@@ -532,12 +700,31 @@
       sourcePanel: document.getElementById("sourcePanel"),
       dataSource: document.getElementById("dataSource"),
       dataSourceLink: document.getElementById("dataSourceLink"),
-      customVideoWrap: document.getElementById("customVideoWrap"),
-      customVideoUrl: document.getElementById("customVideoUrl"),
       dataSourceVideoSample: document.getElementById("dataSourceVideoSample"),
       dataSourceStatus: document.getElementById("dataSourceStatus"),
       mode: document.getElementById("mode"),
       method: document.getElementById("method"),
+      paletteRow: document.getElementById("paletteRow"),
+      chip1: document.getElementById("chip1"),
+      chip2: document.getElementById("chip2"),
+      chip3: document.getElementById("chip3"),
+      chip4: document.getElementById("chip4"),
+      chip5: document.getElementById("chip5"),
+      chip1Btn: document.getElementById("chip1Btn"),
+      chip2Btn: document.getElementById("chip2Btn"),
+      chip3Btn: document.getElementById("chip3Btn"),
+      chip4Btn: document.getElementById("chip4Btn"),
+      chip5Btn: document.getElementById("chip5Btn"),
+      chip1Hex: document.getElementById("chip1Hex"),
+      chip2Hex: document.getElementById("chip2Hex"),
+      chip3Hex: document.getElementById("chip3Hex"),
+      chip4Hex: document.getElementById("chip4Hex"),
+      chip5Hex: document.getElementById("chip5Hex"),
+      colorPopover: document.getElementById("colorPopover"),
+      svCanvas: document.getElementById("svCanvas"),
+      hueSlider: document.getElementById("hueSlider"),
+      colorPreview: document.getElementById("colorPreview"),
+      colorHexInput: document.getElementById("colorHexInput"),
       toolPreset: document.getElementById("toolPreset"),
       pixelSize: document.getElementById("pixelSize"),
       levels: document.getElementById("levels"),
@@ -578,6 +765,8 @@
       sourceH: 0,
       sourceType: "image",
       videoRafId: null,
+      manualVideoRafId: null,
+      manualVideoMode: false,
       activeObjectUrl: null,
       recorder: null,
       recordChunks: [],
@@ -595,6 +784,7 @@
       sampleRafId: null,
       sampleSeed: 0,
       refreshSeed: 0,
+      manualVideoStep: 1 / 30,
     };
 
     const bayer4 = [
@@ -687,69 +877,29 @@
     };
 
     const dataSources = {
-      "nasa-svs": {
-        desc: "NASA Scientific Visualization Studio (MP4/WebM animations).",
+      "nasa-svs-atmosphere": {
+        desc: "NASA SVS atmosphere & weather simulations (public domain).",
         url: "https://svs.gsfc.nasa.gov/",
         prefersVideo: true,
       },
+      "noaa-goes-earth-orbit": {
+        desc: "NOAA GOES Earth from Orbit animations (public domain).",
+        url: "https://goes-r.noaa.gov/multimedia/videos/earthfromOrbit.html",
+        prefersVideo: true,
+      },
+      "noaa-goes-16-videos": {
+        desc: "NOAA GOES-16 data & imagery videos (public domain).",
+        url: "https://www.goes-r.gov/multimedia/dataAndImageryVideosGoes-16.html",
+        prefersVideo: true,
+      },
       "nasa-image-video": {
-        desc: "NASA Image and Video Library (search & download videos).",
-        url: "https://www.nasa.gov/stem-content/nasa-image-and-video-library/",
+        desc: "NASA Image and Video Library (public domain usage policy applies).",
+        url: "https://images.nasa.gov/",
         prefersVideo: true,
       },
-      "nasa-earth-observatory-video": {
-        desc: "Earth Observatory videos and features.",
-        url: "https://earthobservatory.nasa.gov/",
-        prefersVideo: true,
-      },
-      "nasa-heasarc-video": {
-        desc: "HEASARC video archive (high-energy astrophysics animations).",
-        url: "https://heasarc.gsfc.nasa.gov/docs/heasarc/videos/videos.html",
-        prefersVideo: true,
-      },
-      "nasa-landsat-archive-video": {
-        desc: "Landsat video archives and historical footage.",
-        url: "https://landsat.gsfc.nasa.gov/article/landsat-video-from-the-archives/",
-        prefersVideo: true,
-      },
-      "noaa-ocean-exploration": {
-        desc: "NOAA Ocean Exploration video portal (public domain video).",
-        url: "https://oceanexplorer.noaa.gov/data/access-tools/",
-        prefersVideo: true,
-      },
-      "usgs-shakemovie": {
-        desc: "USGS ShakeMovie animations of seismic wave propagation.",
-        url: "https://www.usgs.gov/centers/earthquake-science-center/multimedia/videos",
-        prefersVideo: true,
-      },
-      "iris-usarray": {
-        desc: "USArray wave visualizations from real earthquake data.",
-        url: "https://www.iris.edu/hq/programs/epo/visualizations",
-        prefersVideo: true,
-      },
-      "seismic-sound-lab": {
-        desc: "Seismic wave field movies with audio from real data.",
-        url: "https://seismicsoundlab.github.io/movies/specfemtohoku/",
-        prefersVideo: true,
-      },
-      "jhtdb-video": {
-        desc: "Turbulence visualization videos (JHTDB).",
-        url: "https://turbulence.pha.jhu.edu/vid2.aspx",
-        prefersVideo: true,
-      },
-      "cymatics-video": {
-        desc: "Cymatics experiment footage and frames (YouTube/Kaggle).",
-        url: "https://www.kaggle.com/",
-        prefersVideo: true,
-      },
-      "chladni-video": {
-        desc: "Chladni pattern lecture/demos (MIT OCW).",
-        url: "https://ocw.mit.edu/",
-        prefersVideo: true,
-      },
-      "custom-video": {
-        desc: "Provide your own MP4/WebM URL.",
-        url: "",
+      "usgs-earthquake": {
+        desc: "USGS earthquake videos (public domain for USGS-produced content).",
+        url: "https://www.usgs.gov/programs/earthquake-hazards/multimedia/videos",
         prefersVideo: true,
       },
     };
@@ -777,7 +927,6 @@
       if (!selected) {
         controls.dataSourceLink.textContent = "";
         controls.dataSourceStatus.textContent = "";
-        controls.customVideoWrap.style.display = "none";
         return;
       }
       if (selected.url) {
@@ -786,7 +935,6 @@
         controls.dataSourceLink.textContent = "";
       }
       controls.dataSourceStatus.textContent = "Use local sample or open source link.";
-      controls.customVideoWrap.style.display = controls.dataSource.value === "custom-video" ? "block" : "none";
       if (selected.prefersVideo) {
         controls.dataSourceVideoSample.checked = true;
       }
@@ -884,34 +1032,65 @@
     function generateWaveformSample(style, rng) {
       const c = makeSampleCanvas();
       const cctx = c.getContext("2d");
-      const palettes = [
-        ["#0b0b0b", "#f2f2f2"],
-        ["#0a0f14", "#9fd3ff"],
-        ["#101012", "#ffd166"],
-      ];
+      const paletteSets = {
+        env: [
+          ["#0b0b0b", "#f2f2f2"],
+          ["#0a0f14", "#9fd3ff"],
+          ["#101012", "#ffd166"],
+        ],
+        sat: [
+          ["#090b14", "#7fd2ff"],
+          ["#0b0f18", "#59b0ff"],
+          ["#0b0d12", "#a6c8ff"],
+        ],
+        quake: [
+          ["#0b0707", "#ffb3a7"],
+          ["#100a0a", "#ff8474"],
+          ["#120c0c", "#ffd1c4"],
+        ],
+      };
+      const palettes = paletteSets[style] || paletteSets.env;
       const palette = palettes[Math.floor(rng() * palettes.length)];
       cctx.fillStyle = palette[0];
       cctx.fillRect(0, 0, c.width, c.height);
       cctx.strokeStyle = palette[1];
-      cctx.lineWidth = 1.5 + rng() * 1.5;
+      cctx.lineWidth = style === "quake" ? 2.4 + rng() * 2.2 : 1.5 + rng() * 1.5;
       cctx.beginPath();
       const mid = c.height / 2;
       const phase = rng() * Math.PI * 2;
       for (let x = 0; x < c.width; x++) {
         const t = x / c.width;
-        const ampBase = style === "speech" ? 80 : 120;
-        const freqBase = style === "urban" ? 8 : 5;
+        const ampBase = style === "speech" ? 80 : style === "sat" ? 70 : style === "quake" ? 140 : 120;
+        const freqBase = style === "urban" ? 8 : style === "sat" ? 10 : style === "quake" ? 3 : 5;
         const amp = ampBase * (0.7 + rng() * 0.6);
         const freq = freqBase + (rng() * 2 - 1);
-        const y =
+        let y =
           mid +
           Math.sin(t * Math.PI * 2 * freq + phase) *
             amp *
             (0.55 + 0.45 * Math.sin(t * Math.PI * 2 + phase));
+        if (style === "quake") {
+          const spikes = Math.sin(t * Math.PI * 18 + phase) * Math.sin(t * Math.PI * 2 + phase);
+          y += spikes * 18;
+        }
         if (x === 0) cctx.moveTo(x, y);
         else cctx.lineTo(x, y);
       }
       cctx.stroke();
+      if (style === "sat") {
+        cctx.strokeStyle = "rgba(100,190,255,0.35)";
+        cctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          cctx.beginPath();
+          const y = (c.height / 6) * (i + 1) + 10 * Math.sin(phase + i);
+          for (let x = 0; x < c.width; x += 10) {
+            const dy = 6 * Math.sin(x / 50 + phase + i);
+            if (x === 0) cctx.moveTo(x, y + dy);
+            else cctx.lineTo(x, y + dy);
+          }
+          cctx.stroke();
+        }
+      }
       return c;
     }
 
@@ -973,33 +1152,107 @@
       return c;
     }
 
-    function generateFluidSample(rng) {
+    function generateFluidSample(rng, style = "svs") {
       const c = makeSampleCanvas();
       const cctx = c.getContext("2d");
       const g = cctx.createLinearGradient(0, 0, c.width, c.height);
-      const gradients = [
-        ["#0c1a2b", "#162a3b", "#1f3b4d"],
-        ["#101c2a", "#1b3a4a", "#224b6a"],
-        ["#0a1a1d", "#14303b", "#1a4a57"],
-      ];
+      const gradientsByStyle = {
+        svs: [
+          ["#0c1a2b", "#162a3b", "#1f3b4d"],
+          ["#101c2a", "#1b3a4a", "#224b6a"],
+          ["#0a1a1d", "#14303b", "#1a4a57"],
+        ],
+        ocean: [
+          ["#031319", "#0b2830", "#123f4a"],
+          ["#04181f", "#0b2c35", "#134654"],
+          ["#061b22", "#0f3340", "#18495a"],
+        ],
+        orbit: [
+          ["#0a0f1a", "#121b2a", "#1b2740"],
+          ["#070d18", "#0f1a2c", "#18243b"],
+          ["#0b111f", "#141f33", "#1c2b45"],
+        ],
+      };
+      const gradients = gradientsByStyle[style] || gradientsByStyle.svs;
       const palette = gradients[Math.floor(rng() * gradients.length)];
       g.addColorStop(0, palette[0]);
       g.addColorStop(0.5, palette[1]);
       g.addColorStop(1, palette[2]);
       cctx.fillStyle = g;
       cctx.fillRect(0, 0, c.width, c.height);
-      cctx.strokeStyle = `rgba(255,255,255,${0.4 + rng() * 0.35})`;
-      const bands = 10 + Math.floor(rng() * 8);
-      for (let i = 0; i < bands; i++) {
+      cctx.strokeStyle = `rgba(255,255,255,${0.35 + rng() * 0.4})`;
+      if (style === "orbit") {
+        const horizonY = c.height * (0.62 + rng() * 0.1);
+        const earthR = c.width * (0.9 + rng() * 0.15);
+        cctx.fillStyle = "#06101a";
         cctx.beginPath();
-        const y = (c.height / bands) * i + 10 * Math.sin(i + rng());
-        for (let x = 0; x < c.width; x += 8) {
-          const t = x / c.width;
-          const dy = (14 + rng() * 14) * Math.sin(t * Math.PI * (3 + rng() * 3) + i);
-          if (x === 0) cctx.moveTo(x, y + dy);
-          else cctx.lineTo(x, y + dy);
+        cctx.arc(c.width / 2, horizonY + earthR * 0.55, earthR, Math.PI, Math.PI * 2);
+        cctx.fill();
+
+        const glow = cctx.createLinearGradient(0, horizonY - 30, 0, horizonY + 30);
+        glow.addColorStop(0, "rgba(90,170,255,0.55)");
+        glow.addColorStop(1, "rgba(90,170,255,0)");
+        cctx.fillStyle = glow;
+        cctx.fillRect(0, horizonY - 30, c.width, 60);
+
+        cctx.strokeStyle = "rgba(140,200,255,0.35)";
+        cctx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+          cctx.beginPath();
+          const y = horizonY + (i + 1) * 10 + 6 * Math.sin(i + rng());
+          cctx.moveTo(0, y);
+          cctx.lineTo(c.width, y + 4 * Math.sin(i + rng()));
+          cctx.stroke();
         }
-        cctx.stroke();
+      } else {
+        const bands = style === "ocean" ? 14 + Math.floor(rng() * 6) : 10 + Math.floor(rng() * 8);
+        for (let i = 0; i < bands; i++) {
+          cctx.beginPath();
+          const y = (c.height / bands) * i + 10 * Math.sin(i + rng());
+          for (let x = 0; x < c.width; x += 8) {
+            const t = x / c.width;
+            const dy = (14 + rng() * 14) * Math.sin(t * Math.PI * (3 + rng() * 3) + i);
+            if (x === 0) cctx.moveTo(x, y + dy);
+            else cctx.lineTo(x, y + dy);
+          }
+          cctx.stroke();
+        }
+      }
+      return c;
+    }
+
+    function generateStarfieldSample(rng) {
+      const c = makeSampleCanvas();
+      const cctx = c.getContext("2d");
+      cctx.fillStyle = "#04060d";
+      cctx.fillRect(0, 0, c.width, c.height);
+      const nebulae = [
+        ["rgba(90,140,255,0.35)", "rgba(90,140,255,0)"],
+        ["rgba(255,120,80,0.3)", "rgba(255,120,80,0)"],
+        ["rgba(120,255,200,0.25)", "rgba(120,255,200,0)"],
+      ];
+      for (let i = 0; i < 3; i++) {
+        const [c0, c1] = nebulae[i];
+        const x = rng() * c.width;
+        const y = rng() * c.height;
+        const r = 180 + rng() * 220;
+        const g = cctx.createRadialGradient(x, y, 10, x, y, r);
+        g.addColorStop(0, c0);
+        g.addColorStop(1, c1);
+        cctx.fillStyle = g;
+        cctx.beginPath();
+        cctx.arc(x, y, r, 0, Math.PI * 2);
+        cctx.fill();
+      }
+      cctx.fillStyle = "rgba(255,255,255,0.85)";
+      const count = 100 + Math.floor(rng() * 140);
+      for (let i = 0; i < count; i++) {
+        const x = rng() * c.width;
+        const y = rng() * c.height;
+        const r = 0.6 + rng() * 1.8;
+        cctx.beginPath();
+        cctx.arc(x, y, r, 0, Math.PI * 2);
+        cctx.fill();
       }
       return c;
     }
@@ -1053,18 +1306,11 @@
 
     function generateSampleForSource(key, sourceSeed) {
       const rng = makeSeededRngFromSeed(sourceSeed);
-      if (key === "cymatics-video") return generateCymaticsSample(rng);
-      if (key === "chladni-video") return generateChladniSample(rng);
-      if (key === "nasa-svs") return generateFluidSample(rng);
-      if (key === "nasa-image-video") return generateFluidSample(rng);
-      if (key === "nasa-earth-observatory-video") return generateFluidSample(rng);
-      if (key === "nasa-heasarc-video") return generateWaveformSample("env", rng);
-      if (key === "nasa-landsat-archive-video") return generateFluidSample(rng);
-      if (key === "noaa-ocean-exploration") return generateFluidSample(rng);
-      if (key === "usgs-shakemovie") return generateWaveformSample("env", rng);
-      if (key === "iris-usarray") return generateWaveformSample("env", rng);
-      if (key === "seismic-sound-lab") return generateWaveformSample("urban", rng);
-      if (key === "jhtdb-video") return generateFluidSample(rng);
+      if (key === "nasa-svs-atmosphere") return generateFluidSample(rng, "svs");
+      if (key === "noaa-goes-earth-orbit") return generateFluidSample(rng, "orbit");
+      if (key === "noaa-goes-16-videos") return generateWaveformSample("sat", rng);
+      if (key === "nasa-image-video") return generateStarfieldSample(rng);
+      if (key === "usgs-earthquake") return generateWaveformSample("quake", rng);
       return null;
     }
 
@@ -1089,14 +1335,9 @@
       state.original = sourceVideo;
       state.sourceType = "video";
       setVideoActionEnabled(true);
-      controls.playPauseBtn.textContent = "Pause";
       sourceVideo.srcObject = stream;
       const tryPlay = () => {
-        sourceVideo.play().then(() => {
-          startVideoLoop();
-          processImage();
-        }).catch(() => {
-          controls.playPauseBtn.textContent = "Play";
+        tryPlayVideo().then(() => {
           processImage();
         });
       };
@@ -1116,128 +1357,90 @@
         ctx2d.lineWidth = 2;
         const w = ctx2d.canvas.width;
         const h = ctx2d.canvas.height;
-        const baseSeedValue = baseSeed !== null ? baseSeed : (hashString(key) ^ Math.floor(state.sampleSeed * 1e9)) >>> 0;
+        const keySeed = hashString(key);
+        const variationSeed = baseSeed !== null ? baseSeed : Math.floor(state.sampleSeed * 1e9);
+        const randBase = (n) => {
+          const v = Math.sin(n * 12.9898 + keySeed * 0.0001) * 43758.5453;
+          return v - Math.floor(v);
+        };
         const rand = (n) => {
-          const v = Math.sin(n * 12.9898 + baseSeedValue * 0.0001) * 43758.5453;
+          const v = Math.sin(n * 12.9898 + variationSeed * 0.0001) * 43758.5453;
           return v - Math.floor(v);
         };
         const randT = (n, tt) => {
-          const v = Math.sin(n * 12.9898 + baseSeedValue * 0.0001 + tt * 1.37) * 43758.5453;
+          const v = Math.sin(n * 12.9898 + variationSeed * 0.0001 + tt * 1.37) * 43758.5453;
           return v - Math.floor(v);
         };
         const variantCount = {
-          "nasa-svs": 3,
+          "nasa-svs-atmosphere": 3,
           "nasa-image-video": 3,
-          "nasa-earth-observatory-video": 3,
-          "nasa-heasarc-video": 3,
-          "nasa-landsat-archive-video": 3,
-          "noaa-ocean-exploration": 3,
-          "usgs-shakemovie": 3,
-          "iris-usarray": 3,
-          "seismic-sound-lab": 3,
-          "jhtdb-video": 3,
-          "cymatics-video": 3,
-          "chladni-video": 3,
+          "noaa-goes-earth-orbit": 3,
+          "noaa-goes-16-videos": 3,
+          "usgs-earthquake": 3,
         }[key] || 3;
-        const mode = Math.floor(rand(1) * variantCount);
+        const mode = Math.floor(randBase(1) * variantCount);
         const palette = [
           ["#0b0b0b", "#f2f2f2", "#6ec6ff"],
           ["#0a0a10", "#ffd166", "#ef476f"],
           ["#0a0f0b", "#06d6a0", "#118ab2"],
-        ][Math.floor(rand(2) * 3)];
+        ][Math.floor(randBase(2) * 3)];
         ctx2d.fillStyle = palette[0];
         ctx2d.fillRect(0, 0, w, h);
-        if (key === "chladni-video") {
-          const chMode = mode;
-          ctx2d.strokeStyle = "rgba(255,255,255,0.7)";
-          ctx2d.lineWidth = 1.1 + rand(10);
-          if (chMode === 0) {
-            for (let i = 0; i < 10; i++) {
-              const x = (w / 10) * i + 8 * Math.sin(t + i);
-              ctx2d.beginPath();
-              ctx2d.moveTo(x, 0);
-              ctx2d.lineTo(x, h);
-              ctx2d.stroke();
-            }
-            for (let j = 0; j < 8; j++) {
-              const y = (h / 8) * j + 8 * Math.cos(t + j);
-              ctx2d.beginPath();
-              ctx2d.moveTo(0, y);
-              ctx2d.lineTo(w, y);
-              ctx2d.stroke();
-            }
-          } else if (chMode === 1) {
-            const nodes = 5 + Math.floor(rand(11) * 6);
-            for (let i = 0; i < nodes; i++) {
-              const r = 40 + i * 28;
-              ctx2d.beginPath();
-              ctx2d.ellipse(w / 2, h / 2, r * 1.4, r, t * 0.4 + i * 0.2, 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else {
-            const kx = 3 + Math.floor(rand(12) * 5);
-            const ky = 2 + Math.floor(rand(13) * 4);
-            for (let x = 0; x < w; x += 10) {
-              const tt = x / w;
-              const y = h / 2 + Math.sin(tt * Math.PI * 2 * kx + t * 1.2) * (h * 0.25);
-              ctx2d.beginPath();
-              ctx2d.moveTo(x, 0);
-              ctx2d.lineTo(x, y);
-              ctx2d.stroke();
-            }
-            for (let y = 0; y < h; y += 10) {
-              const tt = y / h;
-              const x = w / 2 + Math.sin(tt * Math.PI * 2 * ky + t * 0.9) * (w * 0.2);
-              ctx2d.beginPath();
-              ctx2d.moveTo(0, y);
-              ctx2d.lineTo(x, y);
-              ctx2d.stroke();
-            }
+        if (key === "noaa-goes-earth-orbit") {
+          const horizonY = h * (0.62 + 0.04 * Math.sin(t * 0.4));
+          const earthR = w * (0.95 + 0.05 * Math.sin(t * 0.3));
+          ctx2d.fillStyle = "#07111c";
+          ctx2d.beginPath();
+          ctx2d.arc(w / 2, horizonY + earthR * 0.55, earthR, Math.PI, Math.PI * 2);
+          ctx2d.fill();
+
+          const glow = ctx2d.createLinearGradient(0, horizonY - 40, 0, horizonY + 40);
+          glow.addColorStop(0, "rgba(80,160,255,0.6)");
+          glow.addColorStop(1, "rgba(80,160,255,0)");
+          ctx2d.fillStyle = glow;
+          ctx2d.fillRect(0, horizonY - 40, w, 80);
+
+          ctx2d.strokeStyle = "rgba(130,200,255,0.35)";
+          ctx2d.lineWidth = 1;
+          for (let i = 0; i < 7; i++) {
+            const y = horizonY + 8 + i * 12 + 6 * Math.sin(t * 0.8 + i);
+            ctx2d.beginPath();
+            ctx2d.moveTo(0, y);
+            ctx2d.lineTo(w, y + 6 * Math.sin(t + i));
+            ctx2d.stroke();
           }
           return;
         }
-        if (key === "cymatics-video") {
-          const cyMode = mode;
-          ctx2d.strokeStyle = "rgba(255,255,255,0.8)";
-          if (cyMode === 0) {
-            for (let r = 20; r < 260; r += 12) {
+
+        if (key === "nasa-image-video") {
+          ctx2d.fillStyle = "#04060d";
+          ctx2d.fillRect(0, 0, w, h);
+          const layers = 3;
+          for (let l = 0; l < layers; l++) {
+            const count = 40 + l * 35;
+            const speed = 6 + l * 12;
+            const size = 0.8 + l * 0.6;
+            ctx2d.fillStyle = `rgba(255,255,255,${0.65 - l * 0.15})`;
+            for (let i = 0; i < count; i++) {
+              const x = (randBase(i + l * 99) * w + t * speed * (l + 1)) % w;
+              const y = randBase(i + l * 199) * h;
               ctx2d.beginPath();
-              const wobble = 0.08 * Math.sin(t + r / 20);
-              ctx2d.ellipse(w / 2, h / 2, r * 1.6, r, t * 0.3 + wobble, 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else if (cyMode === 1) {
-            const spokes = 6 + Math.floor(rand(15) * 8);
-            for (let s = 0; s < spokes; s++) {
-              const angle = (Math.PI * 2 * s) / spokes + t * 0.1;
-              ctx2d.beginPath();
-              for (let r = 20; r < 280; r += 6) {
-                const wobble = 8 * Math.sin(t * 2 + r * 0.08 + s);
-                const x = w / 2 + Math.cos(angle) * (r + wobble);
-                const y = h / 2 + Math.sin(angle) * (r + wobble);
-                if (r === 20) ctx2d.moveTo(x, y);
-                else ctx2d.lineTo(x, y);
-              }
-              ctx2d.stroke();
-            }
-          } else {
-            const lobes = 4 + Math.floor(rand(16) * 6);
-            for (let i = 0; i < 10; i++) {
-              const r = 30 + i * 18;
-              ctx2d.beginPath();
-              for (let a = 0; a <= Math.PI * 2 + 0.01; a += Math.PI / 90) {
-                const wave = Math.sin(a * lobes + t * 2 + i * 0.4) * (8 + randT(i, t) * 10);
-                const x = w / 2 + Math.cos(a) * (r + wave);
-                const y = h / 2 + Math.sin(a) * (r + wave);
-                if (a === 0) ctx2d.moveTo(x, y);
-                else ctx2d.lineTo(x, y);
-              }
-              ctx2d.stroke();
+              ctx2d.arc(x, y, size, 0, Math.PI * 2);
+              ctx2d.fill();
             }
           }
+          ctx2d.strokeStyle = "rgba(120,180,255,0.35)";
+          ctx2d.lineWidth = 1;
+          ctx2d.beginPath();
+          ctx2d.arc(w / 2, h / 2, 140 + 20 * Math.sin(t * 0.2), 0, Math.PI * 2);
+          ctx2d.stroke();
           return;
         }
-        if (key === "nasa-svs" || key === "nasa-image-video") {
+
+        if (
+          key === "nasa-svs-atmosphere" ||
+          key === "noaa-goes-16-videos"
+        ) {
           const svsMode = mode;
           if (svsMode === 0) {
             ctx2d.strokeStyle = "rgba(120,200,255,0.8)";
@@ -1276,81 +1479,7 @@
           }
           return;
         }
-        if (key === "nasa-earth-observatory-video") {
-          const eoMode = mode;
-          if (eoMode === 0) {
-            ctx2d.strokeStyle = "rgba(120,255,180,0.8)";
-            ctx2d.lineWidth = 1.2;
-            for (let i = 0; i < 12; i++) {
-              ctx2d.beginPath();
-              const y = (h / 12) * i + 10 * Math.sin(t + i * 0.7);
-              for (let x = 0; x < w; x += 10) {
-                const dy = 8 * Math.sin(t * 1.5 + x / 60 + i);
-                if (x === 0) ctx2d.moveTo(x, y + dy);
-                else ctx2d.lineTo(x, y + dy);
-              }
-              ctx2d.stroke();
-            }
-          } else if (eoMode === 1) {
-            ctx2d.strokeStyle = "rgba(140,220,180,0.7)";
-            for (let i = 0; i < 6; i++) {
-              ctx2d.beginPath();
-              const r = 60 + i * 40;
-              ctx2d.ellipse(w / 2, h / 2, r * 1.8, r, t * 0.15, 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(120,255,200,0.7)";
-            for (let i = 0; i < 14; i++) {
-              ctx2d.beginPath();
-              const x = (w / 14) * i + 12 * Math.cos(t + i);
-              ctx2d.moveTo(x, 0);
-              ctx2d.lineTo(x, h);
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "noaa-ocean-exploration") {
-          const oceanMode = mode;
-          if (oceanMode === 0) {
-            ctx2d.strokeStyle = palette[2];
-            ctx2d.lineWidth = 1.5;
-            for (let i = 0; i < 10; i++) {
-              ctx2d.beginPath();
-              const baseY = (h / 10) * i + 8 * Math.sin(t + i);
-              for (let x = 0; x < w; x += 8) {
-                const tt = x / w;
-                const dy = 18 * Math.sin(tt * Math.PI * 6 + t * 2 + i);
-                if (x === 0) ctx2d.moveTo(x, baseY + dy);
-                else ctx2d.lineTo(x, baseY + dy);
-              }
-              ctx2d.stroke();
-            }
-          } else if (oceanMode === 1) {
-            ctx2d.strokeStyle = "rgba(120,220,255,0.7)";
-            for (let i = 0; i < 7; i++) {
-              ctx2d.beginPath();
-              const r = 40 + i * 35;
-              ctx2d.arc(w / 2, h / 2, r + 10 * Math.sin(t * 1.4 + i), 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(100,200,220,0.7)";
-            for (let i = 0; i < 12; i++) {
-              ctx2d.beginPath();
-              const y = (h / 12) * i + 16 * Math.sin(t * 0.8 + i);
-              for (let x = 0; x < w; x += 12) {
-                const dy = 10 * Math.cos(t + x / 50 + i);
-                if (x === 0) ctx2d.moveTo(x, y + dy);
-                else ctx2d.lineTo(x, y + dy);
-              }
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "usgs-shakemovie") {
+        if (key === "usgs-earthquake") {
           const usgsMode = mode;
           if (usgsMode === 0) {
             ctx2d.strokeStyle = palette[1];
@@ -1380,179 +1509,6 @@
                 if (x === 0) ctx2d.moveTo(x, y + dy);
                 else ctx2d.lineTo(x, y + dy);
               }
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "iris-usarray") {
-          const irisMode = mode;
-          if (irisMode === 0) {
-            ctx2d.strokeStyle = palette[2];
-            ctx2d.lineWidth = 1.2;
-            for (let i = 0; i < 16; i++) {
-              ctx2d.beginPath();
-              for (let x = 0; x < w; x += 10) {
-                const tt = x / w;
-                const y = h / 2 + Math.sin(tt * Math.PI * 2 * 3 + t + i * 0.2) * (20 + i);
-                if (x === 0) ctx2d.moveTo(x, y);
-                else ctx2d.lineTo(x, y);
-              }
-              ctx2d.stroke();
-            }
-          } else if (irisMode === 1) {
-            ctx2d.strokeStyle = "rgba(140,220,255,0.7)";
-            for (let i = 0; i < 8; i++) {
-              ctx2d.beginPath();
-              const r = 60 + i * 30;
-              ctx2d.arc(w / 2, h / 2, r, 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(160,240,255,0.8)";
-            for (let i = 0; i < 12; i++) {
-              const x = (w / 12) * i + 10 * Math.sin(t + i);
-              ctx2d.beginPath();
-              ctx2d.moveTo(x, 0);
-              ctx2d.lineTo(x, h);
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "seismic-sound-lab") {
-          const labMode = mode;
-          if (labMode === 0) {
-            const size = 24;
-            for (let y = 0; y < h; y += size) {
-              for (let x = 0; x < w; x += size) {
-                const on = (x / size + y / size + Math.floor(t * 4)) % 2 === 0;
-                ctx2d.fillStyle = on ? palette[2] : palette[0];
-                ctx2d.fillRect(x, y, size - 2, size - 2);
-              }
-            }
-          } else if (labMode === 1) {
-            ctx2d.strokeStyle = "rgba(200,220,255,0.7)";
-            for (let i = 0; i < 20; i++) {
-              ctx2d.beginPath();
-              const y = (h / 20) * i + 6 * Math.sin(t * 1.6 + i);
-              ctx2d.moveTo(0, y);
-              ctx2d.lineTo(w, y);
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(140,200,255,0.7)";
-            for (let i = 0; i < 12; i++) {
-              const ang = (Math.PI * 2 * i) / 12 + t * 0.2;
-              ctx2d.beginPath();
-              ctx2d.moveTo(w / 2, h / 2);
-              ctx2d.lineTo(w / 2 + Math.cos(ang) * 200, h / 2 + Math.sin(ang) * 140);
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "jhtdb-video") {
-          const jhMode = mode;
-          if (jhMode === 0) {
-            ctx2d.strokeStyle = palette[1];
-            ctx2d.lineWidth = 1.5;
-            for (let i = 0; i < 40; i++) {
-              const x = (i * 37 + t * 80) % w;
-              const y = (i * 59 + t * 50) % h;
-              ctx2d.beginPath();
-              ctx2d.arc(x, y, 8 + 6 * Math.sin(t + i), 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else if (jhMode === 1) {
-            ctx2d.strokeStyle = "rgba(255,180,120,0.7)";
-            for (let i = 0; i < 14; i++) {
-              ctx2d.beginPath();
-              const y = (h / 14) * i + 12 * Math.sin(t * 1.2 + i);
-              for (let x = 0; x < w; x += 12) {
-                const dy = 10 * Math.cos(t * 0.8 + x / 60 + i);
-                if (x === 0) ctx2d.moveTo(x, y + dy);
-                else ctx2d.lineTo(x, y + dy);
-              }
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(255,200,140,0.7)";
-            for (let i = 0; i < 18; i++) {
-              const ang = (Math.PI * 2 * i) / 18 + t * 0.25;
-              ctx2d.beginPath();
-              ctx2d.moveTo(w / 2, h / 2);
-              ctx2d.lineTo(w / 2 + Math.cos(ang) * 200, h / 2 + Math.sin(ang) * 120);
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "nasa-heasarc-video") {
-          const heaMode = mode;
-          if (heaMode === 0) {
-            ctx2d.fillStyle = "rgba(255,255,255,0.8)";
-            for (let i = 0; i < 160; i++) {
-              const x = (i * 73 + t * 40) % w;
-              const y = (i * 131 + t * 20) % h;
-              ctx2d.fillRect(x, y, 1.2, 1.2);
-            }
-            ctx2d.strokeStyle = "rgba(255,180,120,0.9)";
-            ctx2d.lineWidth = 2;
-            ctx2d.beginPath();
-            const pulse = 40 + 20 * Math.sin(t * 4);
-            ctx2d.arc(w / 2, h / 2, pulse, 0, Math.PI * 2);
-            ctx2d.stroke();
-          } else if (heaMode === 1) {
-            ctx2d.strokeStyle = "rgba(255,220,180,0.7)";
-            for (let i = 0; i < 12; i++) {
-              ctx2d.beginPath();
-              const r = 40 + i * 26;
-              ctx2d.ellipse(w / 2, h / 2, r * 1.2, r, t * 0.35 + i * 0.1, 0, Math.PI * 2);
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(255,200,160,0.7)";
-            for (let i = 0; i < 20; i++) {
-              const ang = (Math.PI * 2 * i) / 20 + t * 0.3;
-              ctx2d.beginPath();
-              ctx2d.moveTo(w / 2, h / 2);
-              ctx2d.lineTo(w / 2 + Math.cos(ang) * 220, h / 2 + Math.sin(ang) * 160);
-              ctx2d.stroke();
-            }
-          }
-          return;
-        }
-        if (key === "nasa-landsat-archive-video") {
-          const landMode = mode;
-          if (landMode === 0) {
-            ctx2d.fillStyle = "rgba(80,140,220,0.5)";
-            ctx2d.fillRect(0, 0, w, h);
-            ctx2d.fillStyle = "rgba(255,255,255,0.35)";
-            const stripeH = 28;
-            for (let y = 0; y < h; y += stripeH * 2) {
-              const offset = (t * 30) % (stripeH * 2);
-              ctx2d.fillRect(0, y + offset, w, stripeH);
-            }
-          } else if (landMode === 1) {
-            ctx2d.strokeStyle = "rgba(140,200,255,0.6)";
-            for (let i = 0; i < 10; i++) {
-              ctx2d.beginPath();
-              const y = (h / 10) * i + 20 * Math.sin(t + i);
-              for (let x = 0; x < w; x += 14) {
-                const dy = 12 * Math.cos(t * 1.2 + x / 70 + i);
-                if (x === 0) ctx2d.moveTo(x, y + dy);
-                else ctx2d.lineTo(x, y + dy);
-              }
-              ctx2d.stroke();
-            }
-          } else {
-            ctx2d.strokeStyle = "rgba(120,200,255,0.7)";
-            for (let i = 0; i < 14; i++) {
-              const x = (w / 14) * i + 12 * Math.sin(t + i);
-              ctx2d.beginPath();
-              ctx2d.moveTo(x, 0);
-              ctx2d.lineTo(x, h);
               ctx2d.stroke();
             }
           }
@@ -1610,10 +1566,298 @@
       }
     }
 
+    function hexToRgb(hex) {
+      const clean = hex.replace("#", "").toLowerCase();
+      if (clean.length !== 6) return [255, 255, 255];
+      const r = parseInt(clean.slice(0, 2), 16);
+      const g = parseInt(clean.slice(2, 4), 16);
+      const b = parseInt(clean.slice(4, 6), 16);
+      return [r, g, b];
+    }
+
+    function rgbToHex(r, g, b) {
+      const toHex = (v) => v.toString(16).padStart(2, "0");
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+
+    function rgbToHsv(r, g, b) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      const d = max - min;
+      let h = 0;
+      if (d !== 0) {
+        if (max === rn) h = ((gn - bn) / d) % 6;
+        else if (max === gn) h = (bn - rn) / d + 2;
+        else h = (rn - gn) / d + 4;
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+      const s = max === 0 ? 0 : d / max;
+      const v = max;
+      return [h, s, v];
+    }
+
+    function hsvToRgb(h, s, v) {
+      const c = v * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = v - c;
+      let r1 = 0, g1 = 0, b1 = 0;
+      if (h < 60) [r1, g1, b1] = [c, x, 0];
+      else if (h < 120) [r1, g1, b1] = [x, c, 0];
+      else if (h < 180) [r1, g1, b1] = [0, c, x];
+      else if (h < 240) [r1, g1, b1] = [0, x, c];
+      else if (h < 300) [r1, g1, b1] = [x, 0, c];
+      else [r1, g1, b1] = [c, 0, x];
+      return [
+        Math.round((r1 + m) * 255),
+        Math.round((g1 + m) * 255),
+        Math.round((b1 + m) * 255),
+      ];
+    }
+
+
+    function getShapePalette() {
+      return [
+        hexToRgb(controls.chip1.value),
+        hexToRgb(controls.chip2.value),
+        hexToRgb(controls.chip3.value),
+        hexToRgb(controls.chip4.value),
+        hexToRgb(controls.chip5.value),
+      ];
+    }
+
+    function renderShapeAscii(lum, data, w, h, pixelSize, mode) {
+      canvas.width = w * pixelSize;
+      canvas.height = h * pixelSize;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const palette = getShapePalette();
+      const size = Math.max(2, Math.floor(pixelSize * 0.95));
+      const hash2 = (x, y) => {
+        let n = x * 374761393 + y * 668265263 + Math.floor(state.sampleSeed * 1e9);
+        n = (n ^ (n >> 13)) * 1274126177;
+        return (n ^ (n >> 16)) >>> 0;
+      };
+      const drawRoundRect = (x, y, w, h, r) => {
+        const rr = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.arcTo(x + w, y, x + w, y + rr, rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+        ctx.lineTo(x + rr, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rr, rr);
+        ctx.lineTo(x, y + rr);
+        ctx.arcTo(x, y, x + rr, y, rr);
+        ctx.closePath();
+        ctx.fill();
+      };
+      const pickColor = (avgR, avgG, avgB, seed) => {
+        if (mode !== "rgb") return "#f2f2f2";
+        const idx = seed % palette.length;
+        const base = palette[idx];
+        const mix = 0.15 + ((seed >> 8) & 255) / 255 * 0.2;
+        const r = Math.round(base[0] * (1 - mix) + avgR * mix);
+        const g = Math.round(base[1] * (1 - mix) + avgG * mix);
+        const b = Math.round(base[2] * (1 - mix) + avgB * mix);
+        return `rgb(${r}, ${g}, ${b})`;
+      };
+      const minLum = mode === "rgb" ? 75 : 50;
+      for (let y = 0; y < h; y++) {
+        let x = 0;
+        while (x < w) {
+          const p = y * w + x;
+          const v = clamp(Math.round(lum[p]), 0, 255);
+          if (v < minLum) {
+            x += 1;
+            continue;
+          }
+          let x2 = x;
+          let sumR = 0;
+          let sumG = 0;
+          let sumB = 0;
+          let sumV = 0;
+          while (x2 < w) {
+            const p2 = y * w + x2;
+            const v2 = clamp(Math.round(lum[p2]), 0, 255);
+            if (v2 < minLum) break;
+            const i2 = p2 * 4;
+            sumR += data[i2];
+            sumG += data[i2 + 1];
+            sumB += data[i2 + 2];
+            sumV += v2;
+            x2 += 1;
+          }
+          const len = x2 - x;
+          const avgR = Math.round(sumR / len);
+          const avgG = Math.round(sumG / len);
+          const avgB = Math.round(sumB / len);
+          const avgV = Math.round(sumV / len);
+          const seed = hash2(x, y);
+          ctx.fillStyle = pickColor(avgR, avgG, avgB, seed);
+          const cy = y * pixelSize + pixelSize * 0.5;
+          const baseX = x * pixelSize;
+          const runW = len * pixelSize;
+          if (len >= 3) {
+            const hPx = size * (0.9 + ((seed >> 6) & 3) * 0.12);
+            drawRoundRect(baseX, cy - hPx / 2, runW + pixelSize * 0.2, hPx, hPx * 0.5);
+          } else if (len === 2) {
+            const hPx = size * 0.92;
+            drawRoundRect(baseX, cy - hPx / 2, runW + pixelSize * 0.2, hPx, hPx * 0.5);
+          } else {
+            const cx = baseX + pixelSize * 0.5;
+            const pick = ((seed >> 4) & 7) / 7;
+            if (pick < 0.4) {
+              ctx.beginPath();
+              ctx.arc(cx, cy, size * 0.5, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (pick < 0.75) {
+              const wPx = size * 0.98;
+              const hPx = size * 0.85;
+              drawRoundRect(cx - wPx / 2, cy - hPx / 2, wPx, hPx, hPx * 0.4);
+            } else {
+              ctx.lineWidth = Math.max(1, Math.floor(size * 0.12));
+              ctx.strokeStyle = ctx.fillStyle;
+              ctx.beginPath();
+              ctx.arc(cx, cy, size * 0.5, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+          // occasional vertical capsule for variation
+          if (avgV > 140 && (seed & 31) === 0) {
+            const hLen = 2 + ((seed >> 9) & 3);
+            const hPx = hLen * pixelSize;
+            const wPx = size * 0.8;
+            drawRoundRect(baseX + pixelSize * 0.1, cy - hPx / 2, wPx, hPx, wPx * 0.5);
+          }
+          x = x2;
+        }
+      }
+    }
+
     function updateValueLabels() {
       Object.keys(valueViews).forEach((k) => {
         valueViews[k].textContent = controls[k].value;
       });
+    }
+
+    function updatePaletteVisibility() {
+      const show = controls.mode.value === "rgb";
+      controls.paletteRow.classList.toggle("active", show);
+    }
+
+    function updateChipLabels() {
+      controls.chip1Hex.textContent = controls.chip1.value.toLowerCase();
+      controls.chip2Hex.textContent = controls.chip2.value.toLowerCase();
+      controls.chip3Hex.textContent = controls.chip3.value.toLowerCase();
+      controls.chip4Hex.textContent = controls.chip4.value.toLowerCase();
+      controls.chip5Hex.textContent = controls.chip5.value.toLowerCase();
+      controls.chip1Btn.style.background = controls.chip1.value;
+      controls.chip2Btn.style.background = controls.chip2.value;
+      controls.chip3Btn.style.background = controls.chip3.value;
+      controls.chip4Btn.style.background = controls.chip4.value;
+      controls.chip5Btn.style.background = controls.chip5.value;
+    }
+
+    function normalizeHex(value) {
+      let v = value.trim().toLowerCase();
+      if (!v.startsWith("#")) v = `#${v}`;
+      if (v.length === 4) {
+        v = `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`;
+      }
+      if (!/^#[0-9a-f]{6}$/.test(v)) return null;
+      return v;
+    }
+
+    let activeChipIndex = null;
+    let currentHue = 0;
+    let currentSat = 1;
+    let currentVal = 1;
+    function openColorPopover(button, chipIndex) {
+      activeChipIndex = chipIndex;
+      const rect = button.getBoundingClientRect();
+      const pop = controls.colorPopover;
+      pop.hidden = false;
+      const x = Math.min(window.innerWidth - pop.offsetWidth - 16, rect.left);
+      const y = Math.min(window.innerHeight - pop.offsetHeight - 16, rect.bottom + 8);
+      pop.style.left = `${Math.max(16, x)}px`;
+      pop.style.top = `${Math.max(16, y)}px`;
+      const hex = controls[`chip${chipIndex}`].value.toLowerCase();
+      controls.colorHexInput.value = hex;
+      const [r, g, b] = hexToRgb(hex);
+      const [h, s, v] = rgbToHsv(r, g, b);
+      currentHue = h;
+      currentSat = s;
+      currentVal = v;
+      controls.hueSlider.value = Math.round(h);
+      drawSvCanvas();
+      updatePreview();
+      controls.colorHexInput.focus();
+      controls.colorHexInput.select();
+    }
+
+    function closeColorPopover() {
+      controls.colorPopover.hidden = true;
+      activeChipIndex = null;
+    }
+
+    function applyChipHex(hex) {
+      if (!activeChipIndex) return;
+      const normalized = normalizeHex(hex);
+      if (!normalized) return;
+      controls[`chip${activeChipIndex}`].value = normalized;
+      updateChipLabels();
+      processImage();
+      storeUiState();
+    }
+
+    function drawSvCanvas() {
+      const canvas = controls.svCanvas;
+      const cctx = canvas.getContext("2d");
+      const { width, height } = canvas;
+      cctx.clearRect(0, 0, width, height);
+      // hue base
+      const [r, g, b] = hsvToRgb(currentHue, 1, 1);
+      cctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      cctx.fillRect(0, 0, width, height);
+      // saturation gradient
+      const whiteGrad = cctx.createLinearGradient(0, 0, width, 0);
+      whiteGrad.addColorStop(0, "rgba(255,255,255,1)");
+      whiteGrad.addColorStop(1, "rgba(255,255,255,0)");
+      cctx.fillStyle = whiteGrad;
+      cctx.fillRect(0, 0, width, height);
+      // value gradient
+      const blackGrad = cctx.createLinearGradient(0, 0, 0, height);
+      blackGrad.addColorStop(0, "rgba(0,0,0,0)");
+      blackGrad.addColorStop(1, "rgba(0,0,0,1)");
+      cctx.fillStyle = blackGrad;
+      cctx.fillRect(0, 0, width, height);
+      // cursor
+      const cx = currentSat * width;
+      const cy = (1 - currentVal) * height;
+      cctx.strokeStyle = "#fff";
+      cctx.lineWidth = 2;
+      cctx.beginPath();
+      cctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      cctx.stroke();
+    }
+
+    function updateFromHsv() {
+      const [r, g, b] = hsvToRgb(currentHue, currentSat, currentVal);
+      const hex = rgbToHex(r, g, b);
+      controls.colorHexInput.value = hex;
+      applyChipHex(hex);
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const [r, g, b] = hsvToRgb(currentHue, currentSat, currentVal);
+      controls.colorPreview.style.background = `rgb(${r}, ${g}, ${b})`;
     }
 
     function setVideoActionEnabled(enabled) {
@@ -1798,6 +2042,10 @@
           renderAscii(lum, data, srcW, srcH, pixelSize, mode);
           return;
         }
+        if (method === "shape-mosaic") {
+          renderShapeAscii(lum, data, srcW, srcH, pixelSize, mode);
+          return;
+        }
         if (mode === "mono") {
           for (let y = 0; y < srcH; y++) {
             for (let x = 0; x < srcW; x++) {
@@ -1835,6 +2083,14 @@
       }
     }
 
+    function stopManualVideoLoop() {
+      if (state.manualVideoRafId) {
+        cancelAnimationFrame(state.manualVideoRafId);
+        state.manualVideoRafId = null;
+      }
+      state.manualVideoMode = false;
+    }
+
     function getRecordMimeType() {
       const types = [
         "video/mp4;codecs=avc1.42E01E",
@@ -1851,6 +2107,7 @@
 
     function startVideoLoop() {
       if (state.sourceType !== "video") return;
+      if (state.manualVideoMode) return;
       stopVideoLoop();
 
       const render = () => {
@@ -1867,6 +2124,50 @@
       };
 
       render();
+    }
+
+    function startManualVideoLoop() {
+      if (state.sourceType !== "video") return;
+      stopManualVideoLoop();
+      state.manualVideoMode = true;
+
+      const render = () => {
+        if (state.sourceType !== "video" || !state.manualVideoMode) {
+          stopManualVideoLoop();
+          return;
+        }
+        if (sourceVideo.readyState >= 2) {
+          const duration = Number.isFinite(sourceVideo.duration) ? sourceVideo.duration : 0;
+          if (duration > 0 && !sourceVideo.seeking) {
+            let next = sourceVideo.currentTime + state.manualVideoStep;
+            if (next >= duration) next = 0;
+            try {
+              sourceVideo.currentTime = next;
+            } catch (_err) {
+              // Ignore seek errors; keep rendering the current frame.
+            }
+          }
+          processImage();
+        }
+        state.manualVideoRafId = requestAnimationFrame(render);
+      };
+
+      render();
+    }
+
+    async function tryPlayVideo() {
+      try {
+        await sourceVideo.play();
+        state.manualVideoMode = false;
+        stopManualVideoLoop();
+        controls.playPauseBtn.textContent = "Pause";
+        startVideoLoop();
+        return true;
+      } catch (_err) {
+        controls.playPauseBtn.textContent = "Pause";
+        startManualVideoLoop();
+        return false;
+      }
     }
 
     function clearActiveObjectURL() {
@@ -1998,11 +2299,13 @@
     function stopCurrentMedia() {
       stopRecording();
       stopVideoLoop();
+      stopManualVideoLoop();
       stopSampleStream();
       sourceVideo.pause();
       sourceVideo.removeAttribute("src");
       sourceVideo.srcObject = null;
       sourceVideo.load();
+      state.manualVideoMode = false;
       clearActiveObjectURL();
       controls.playPauseBtn.disabled = true;
       controls.playPauseBtn.textContent = "Play";
@@ -2098,13 +2401,9 @@
         state.original = sourceVideo;
         state.sourceType = "video";
         setVideoActionEnabled(true);
-        controls.playPauseBtn.textContent = "Pause";
         clearActiveObjectURL();
 
-        sourceVideo.play().then(() => {
-          startVideoLoop();
-        }).catch(() => {
-          controls.playPauseBtn.textContent = "Play";
+        tryPlayVideo().then(() => {
           processImage();
         });
       };
@@ -2191,6 +2490,14 @@
       params.set("white", controls.whitePoint.value);
       params.set("svgBlackOnly", controls.svgBlackOnly.checked ? "1" : "0");
       params.set("videoSample", controls.dataSourceVideoSample.checked ? "1" : "0");
+      params.set("dataSource", controls.dataSource.value || "");
+      const activeTab = document.querySelector("input[name='inputMode']:checked")?.value || "upload";
+      params.set("inputMode", activeTab);
+      params.set("chip1", controls.chip1.value);
+      params.set("chip2", controls.chip2.value);
+      params.set("chip3", controls.chip3.value);
+      params.set("chip4", controls.chip4.value);
+      params.set("chip5", controls.chip5.value);
       localStorage.setItem("pixelation-ui", params.toString());
     }
 
@@ -2201,6 +2508,10 @@
       const applyIf = (key, el) => {
         const v = params.get(key);
         if (v === null) return;
+        if (key === "method" && v === "ascii-color") {
+          el.value = "shape-mosaic";
+          return;
+        }
         el.value = v;
       };
       applyIf("mode", controls.mode);
@@ -2218,6 +2529,28 @@
       if (svgBlackOnly !== null) controls.svgBlackOnly.checked = svgBlackOnly === "1";
       const videoSample = params.get("videoSample");
       if (videoSample !== null) controls.dataSourceVideoSample.checked = videoSample === "1";
+      const chip1 = params.get("chip1");
+      const chip2 = params.get("chip2");
+      const chip3 = params.get("chip3");
+      const chip4 = params.get("chip4");
+      const chip5 = params.get("chip5");
+      if (chip1) controls.chip1.value = chip1;
+      if (chip2) controls.chip2.value = chip2;
+      if (chip3) controls.chip3.value = chip3;
+      if (chip4) controls.chip4.value = chip4;
+      if (chip5) controls.chip5.value = chip5;
+      const dataSource = params.get("dataSource");
+      if (dataSource) {
+        controls.dataSource.value = dataSource;
+      }
+      const inputMode = params.get("inputMode");
+      if (inputMode) {
+        tabRadios.forEach((radio) => {
+          radio.checked = radio.value === inputMode;
+        });
+        setTab(inputMode, true);
+      }
+      updatePaletteVisibility();
       return true;
     }
 
@@ -2272,6 +2605,7 @@
           updateDataSourceInfo();
           if (controls.dataSource.value) loadSampleForSelection();
         }
+        storeUiState();
       });
     });
 
@@ -2293,6 +2627,88 @@
       el.addEventListener("change", processImage);
     });
 
+    controls.mode.addEventListener("change", () => {
+      updatePaletteVisibility();
+    });
+
+    [controls.chip1Btn, controls.chip2Btn, controls.chip3Btn, controls.chip4Btn, controls.chip5Btn].forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const idx = parseInt(e.currentTarget.dataset.chip, 10);
+        openColorPopover(e.currentTarget, idx);
+      });
+    });
+
+    controls.colorHexInput.addEventListener("input", (e) => {
+      const normalized = normalizeHex(e.target.value);
+      if (!normalized) return;
+      const [r, g, b] = hexToRgb(normalized);
+      const [h, s, v] = rgbToHsv(r, g, b);
+      currentHue = h;
+      currentSat = s;
+      currentVal = v;
+      drawSvCanvas();
+      updatePreview();
+      applyChipHex(normalized);
+    });
+
+    controls.colorHexInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeColorPopover();
+      }
+    });
+
+    controls.colorPopover.addEventListener("click", (e) => {
+      const btn = e.target.closest(".color-swatch-btn");
+      if (!btn) return;
+      const normalized = normalizeHex(btn.dataset.color);
+      if (!normalized) return;
+      const [r, g, b] = hexToRgb(normalized);
+      const [h, s, v] = rgbToHsv(r, g, b);
+      currentHue = h;
+      currentSat = s;
+      currentVal = v;
+      controls.hueSlider.value = Math.round(h);
+      drawSvCanvas();
+      updatePreview();
+      applyChipHex(normalized);
+    });
+
+    controls.hueSlider.addEventListener("input", (e) => {
+      currentHue = parseFloat(e.target.value);
+      drawSvCanvas();
+      updateFromHsv();
+    });
+
+    const handleSvPointer = (e) => {
+      const rect = controls.svCanvas.getBoundingClientRect();
+      const x = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
+      const y = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
+      currentSat = x / rect.width;
+      currentVal = 1 - y / rect.height;
+      drawSvCanvas();
+      updateFromHsv();
+    };
+
+    let svDragging = false;
+    controls.svCanvas.addEventListener("mousedown", (e) => {
+      svDragging = true;
+      handleSvPointer(e);
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!svDragging) return;
+      handleSvPointer(e);
+    });
+    window.addEventListener("mouseup", () => {
+      svDragging = false;
+    });
+
+    document.addEventListener("click", (e) => {
+      if (controls.colorPopover.hidden) return;
+      const isChip = e.target.closest(".chip-swatch");
+      const isPopover = e.target.closest("#colorPopover");
+      if (!isChip && !isPopover) closeColorPopover();
+    });
+
     const persistInputs = [
       controls.mode,
       controls.method,
@@ -2307,11 +2723,17 @@
       controls.whitePoint,
       controls.svgBlackOnly,
       controls.dataSourceVideoSample,
+      controls.chip1,
+      controls.chip2,
+      controls.chip3,
+      controls.chip4,
+      controls.chip5,
     ];
     persistInputs.forEach((el) => {
       el.addEventListener("change", storeUiState);
       el.addEventListener("input", storeUiState);
     });
+    updateChipLabels();
 
     controls.toolPreset.addEventListener("change", () => {
       const presetValue = controls.toolPreset.value;
@@ -2328,11 +2750,6 @@
       const params = new URLSearchParams(window.location.search);
       params.set("source", controls.dataSource.value || "");
       params.set("video", controls.dataSourceVideoSample.checked ? "1" : "0");
-      if (controls.customVideoUrl.value) {
-        params.set("url", controls.customVideoUrl.value);
-      } else {
-        params.delete("url");
-      }
       const next = `${window.location.pathname}?${params.toString()}`;
       window.history.replaceState({}, "", next);
     }
@@ -2341,7 +2758,6 @@
       const params = new URLSearchParams(window.location.search);
       const source = params.get("source");
       const video = params.get("video");
-      const url = params.get("url");
       if (source) {
         tabRadios.forEach((radio) => {
           radio.checked = radio.value === "source";
@@ -2350,7 +2766,6 @@
         controls.dataSource.value = source;
         if (video === "1") controls.dataSourceVideoSample.checked = true;
         if (video === "0") controls.dataSourceVideoSample.checked = false;
-        if (url) controls.customVideoUrl.value = url;
         updateDataSourceInfo();
         // ensure placeholder doesn't stay if video sample takes a beat to start
         stopCurrentMedia();
@@ -2371,6 +2786,15 @@
       persistSelectionToUrl();
       storeUiState();
     });
+    controls.dataSource.addEventListener("input", () => {
+      updateDataSourceInfo();
+      loadSampleForSelection();
+    });
+    controls.dataSource.addEventListener("click", () => {
+      if (!controls.dataSource.value) return;
+      updateDataSourceInfo();
+      loadSampleForSelection();
+    });
 
     function loadSampleForSelection(forceStill = false) {
       const key = controls.dataSource.value;
@@ -2379,36 +2803,11 @@
         return;
       }
       const selected = dataSources[key];
+      if (selected && selected.prefersVideo && !forceStill && !controls.dataSourceVideoSample.checked) {
+        controls.dataSourceVideoSample.checked = true;
+      }
       if (!state.sampleSeed) state.sampleSeed = Math.random();
       const sourceSeed = getSourceSeed(key);
-      if (key === "custom-video") {
-        const url = (controls.customVideoUrl.value || "").trim();
-        if (!url) {
-          controls.dataSourceStatus.textContent = "Paste a video URL first.";
-          return;
-        }
-        stopCurrentMedia();
-        sourceVideo.srcObject = null;
-        sourceVideo.src = url;
-        sourceVideo.onloadedmetadata = () => {
-          const size = fitSourceSize(sourceVideo.videoWidth, sourceVideo.videoHeight);
-          state.sourceW = size.w;
-          state.sourceH = size.h;
-          state.original = sourceVideo;
-          state.sourceType = "video";
-          setVideoActionEnabled(true);
-          controls.playPauseBtn.textContent = "Pause";
-          sourceVideo.play().then(() => {
-            startVideoLoop();
-            processImage();
-          }).catch(() => {
-            controls.playPauseBtn.textContent = "Play";
-            processImage();
-          });
-        };
-        controls.dataSourceStatus.textContent = "Loaded custom video URL.";
-        return;
-      }
       if (!forceStill && controls.dataSourceVideoSample.checked) {
         stopCurrentMedia();
         const videoSample = startVideoSampleForSource(key, sourceSeed);
@@ -2439,14 +2838,6 @@
         loadImageFromDataUrl(sample.toDataURL("image/png"));
       }
     }
-
-    controls.customVideoUrl.addEventListener("change", () => {
-      if (controls.dataSource.value === "custom-video") {
-        loadSampleForSelection();
-        persistSelectionToUrl();
-        storeUiState();
-      }
-    });
 
     controls.dataSourceVideoSample.addEventListener("change", () => {
       if (!controls.dataSource.value) return;
@@ -2486,14 +2877,8 @@
     controls.playPauseBtn.addEventListener("click", async () => {
       if (state.sourceType !== "video") return;
       if (state.isTranscoding) return;
-      if (sourceVideo.paused) {
-        try {
-          await sourceVideo.play();
-          controls.playPauseBtn.textContent = "Pause";
-          startVideoLoop();
-        } catch (_err) {
-          controls.playPauseBtn.textContent = "Play";
-        }
+      if (sourceVideo.paused || state.manualVideoMode) {
+        await tryPlayVideo();
         return;
       }
 
@@ -2501,6 +2886,7 @@
       sourceVideo.pause();
       controls.playPauseBtn.textContent = "Play";
       stopVideoLoop();
+      stopManualVideoLoop();
       processImage();
     });
 
@@ -2559,6 +2945,12 @@
       }
       controls.toolPreset.value = "";
       updateDataSourceInfo();
+      updatePaletteVisibility();
+      updateChipLabels();
+      const activeTab = document.querySelector("input[name='inputMode']:checked")?.value;
+      if (activeTab === "source" && controls.dataSource.value) {
+        loadSampleForSelection();
+      }
     })();
 
     restoreSelectionFromUrl();
