@@ -97,50 +97,131 @@
       return Math.max(min, Math.min(max, v));
     }
 
-    function rand(min, max) {
-      return min + Math.random() * (max - min);
+    function clamp01(v) {
+      return Math.max(0, Math.min(1, v));
     }
 
-    const state = {
-      x1: { value: bounds.x1, target: bounds.x1, ttl: 0 },
-      x2: { value: bounds.x2, target: bounds.x2, ttl: 0 },
-      x3: { value: bounds.x3, target: bounds.x3, ttl: 0 },
-      x4: { value: bounds.x4, target: bounds.x4, ttl: 0 },
-      y1: { value: bounds.y1, target: bounds.y1, ttl: 0 }
-    };
+    function easeInOutCubic(v) {
+      const t = clamp01(v);
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
 
+    function easeOutBack(v) {
+      const t = clamp01(v);
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    function blendEase(v) {
+      // Primary cubic easing + slight back-overshoot flavor for livelier motion.
+      const a = easeInOutCubic(v);
+      const b = easeOutBack(v);
+      return a * 0.85 + b * 0.15;
+    }
+
+    function damp(current, target, lambda, dtSec) {
+      return current + (target - current) * (1 - Math.exp(-lambda * dtSec));
+    }
+
+    function catmullRom(p0, p1, p2, p3, t) {
+      const t2 = t * t;
+      const t3 = t2 * t;
+      return 0.5 * (
+        (2 * p1) +
+        (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+      );
+    }
+
+    const baseWidths = [
+      bounds.x1 - bounds.x0, // bottom 1
+      bounds.x2 - bounds.x1, // top 4
+      bounds.x3 - bounds.x2, // bottom 2
+      bounds.x4 - bounds.x3, // top 5
+      bounds.x5 - bounds.x4  // bottom 3
+    ];
+
+    // Width multipliers in order: [bottom1, top4, bottom2, top5, bottom3]
+    // Sequence: 1 -> 2 -> 3 -> 2 -> 1
+    const keyframes = [
+      [1.55, 1.24, 0.72, 0.86, 0.74], // 1 grows
+      [0.84, 1.08, 1.46, 0.96, 0.80], // 2 grows
+      [0.76, 0.88, 0.82, 1.20, 1.56], // 3 grows
+      [0.84, 1.08, 1.46, 0.96, 0.80], // 2 grows again
+      [1.55, 1.24, 0.72, 0.86, 0.74]  // back to 1
+    ];
+
+    const frameMs = 420;
+    const totalMs = keyframes.length * frameMs;
+    const baseY1 = bounds.y1;
+    const yAmp = 22;
+    const yCycleMs = totalMs;
+    const renderState = { x1: bounds.x1, x2: bounds.x2, x3: bounds.x3, x4: bounds.x4, y1: bounds.y1 };
     let lastTs = 0;
 
-    function stepAxis(axis, dt, min, max, agility) {
-      axis.ttl -= dt;
-      if (axis.ttl <= 0) {
-        axis.target = rand(min, max);
-        axis.ttl = rand(220, 520); // slower retarget for calmer motion
-      }
-      const mix = 1 - Math.exp(-agility * dt / 1000);
-      axis.value += (axis.target - axis.value) * mix;
-      axis.value = clamp(axis.value, min, max);
-      return axis.value;
+    function composeWidths(tMs) {
+      const n = keyframes.length;
+      const timeWarp = 0.16 * Math.sin(tMs * 0.0011) + 0.07 * Math.sin(tMs * 0.0019 + 0.8);
+      const pos = (((tMs % totalMs) / frameMs) + timeWarp + n) % n;
+      const i1 = Math.floor(pos);
+      const i0 = (i1 - 1 + n) % n;
+      const i2 = (i1 + 1) % n;
+      const i3 = (i1 + 2) % n;
+      const mix = blendEase(pos - i1);
+
+      const raw = baseWidths.map((w, idx) => {
+        const m = catmullRom(
+          keyframes[i0][idx],
+          keyframes[i1][idx],
+          keyframes[i2][idx],
+          keyframes[i3][idx],
+          mix
+        );
+        const drift = 1 + 0.035 * Math.sin(tMs * 0.0009 + idx * 1.37);
+        return w * m * drift;
+      });
+
+      const rawSum = raw.reduce((sum, v) => sum + v, 0);
+      const total = bounds.x5 - bounds.x0;
+      const scale = total / rawSum;
+      return raw.map((v) => v * scale);
     }
 
     function render(tMs) {
-      const dt = lastTs ? (tMs - lastTs) : 16;
+      const dtSec = lastTs ? (tMs - lastTs) / 1000 : 1 / 60;
       lastTs = tMs;
+      const [w1, w4, w2, w5, w3] = composeWidths(tMs);
 
-      // Shared boundaries move on X/Y axes only.
-      // A line moving right makes one neighboring box wider and the other narrower.
-      let x1 = stepAxis(state.x1, dt, bounds.x0 + 20, bounds.x2 - 14, 9);
-      let x2 = stepAxis(state.x2, dt, x1 + 14, bounds.x3 - 14, 9);
-      let x3 = stepAxis(state.x3, dt, x2 + 14, bounds.x4 - 10, 8);
-      let x4 = stepAxis(state.x4, dt, x3 + 10, bounds.x5 - 9, 8);
-      let y1 = stepAxis(state.y1, dt, bounds.y0 + 28, bounds.y2 - 44, 7);
+      const targetX1 = bounds.x0 + w1;
+      const targetX2 = targetX1 + w4;
+      const targetX3 = targetX2 + w2;
+      const targetX4 = targetX3 + w5;
 
-      // Keep strict ordering so rectangles never flip.
-      x1 = clamp(x1, bounds.x0 + 20, bounds.x2 - 14);
-      x2 = clamp(x2, x1 + 14, bounds.x3 - 14);
-      x3 = clamp(x3, x2 + 14, bounds.x4 - 10);
-      x4 = clamp(x4, x3 + 10, bounds.x5 - 9);
-      y1 = clamp(y1, bounds.y0 + 28, bounds.y2 - 44);
+      const yProgress = (tMs % yCycleMs) / yCycleMs;
+      const yWave = Math.sin(yProgress * Math.PI * 2) + 0.28 * Math.sin(yProgress * Math.PI * 4 + 0.6);
+      const yShaped = yWave >= 0 ? easeOutBack(clamp01(yWave)) : -easeInOutCubic(clamp01(-yWave));
+      const targetY1 = clamp(baseY1 + yShaped * yAmp, bounds.y0 + 40, bounds.y2 - 44);
+
+      renderState.x1 = damp(renderState.x1, targetX1, 11.5, dtSec);
+      renderState.x2 = damp(renderState.x2, targetX2, 10.5, dtSec);
+      renderState.x3 = damp(renderState.x3, targetX3, 10.2, dtSec);
+      renderState.x4 = damp(renderState.x4, targetX4, 9.8, dtSec);
+      renderState.y1 = damp(renderState.y1, targetY1, 8.5, dtSec);
+
+      let x1 = renderState.x1;
+      let x2 = renderState.x2;
+      let x3 = renderState.x3;
+      let x4 = renderState.x4;
+      let y1 = renderState.y1;
+
+      // Hard safety clamp to preserve valid rectangles.
+      x1 = clamp(x1, bounds.x0 + 10, bounds.x2 - 8);
+      x2 = clamp(x2, x1 + 8, bounds.x3 - 8);
+      x3 = clamp(x3, x2 + 8, bounds.x4 - 8);
+      x4 = clamp(x4, x3 + 8, bounds.x5 - 8);
+      y1 = clamp(y1, bounds.y0 + 40, bounds.y2 - 44);
 
       // Top row: 2 boxes
       shapes[0].setAttribute("points", rectPoints(x1, x2, bounds.y0, y1));
