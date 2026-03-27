@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organic M Animation</title>
+  <style>
+    :root {
+      --bg: #000;
+      --shape: #f3f3f3;
+      --dot: #63f5b7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 30%, #101010 0%, #000 55%);
+      color: #fff;
+      font-family: "Pretendard", "Noto Sans KR", sans-serif;
+    }
+
+    .wrap {
+      width: min(92vw, 760px);
+      aspect-ratio: 375 / 281;
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: visible;
+    }
+
+    .block {
+      fill: var(--shape);
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
+    }
+
+    .dot {
+      fill: var(--dot);
+      opacity: 0.2;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <svg viewBox="0 0 375 281" aria-label="Connected M with linked-corner resizing">
+      <g id="blocks"></g>
+      <g id="dots"></g>
+    </svg>
+  </div>
+
+  <script>
+    // Geometry from Vector.svg
+    const bounds = {
+      x0: 0,
+      x1: 121.447,
+      x2: 213.906,
+      x3: 291.805,
+      x4: 340.649,
+      x5: 374.999,
+      y0: 0,
+      y1: 103.938,
+      y2: 280.446
+    };
+
+    const blockGroup = document.getElementById("blocks");
+    const dotGroup = document.getElementById("dots");
+
+    const shapes = Array.from({ length: 5 }, () => {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      p.setAttribute("class", "block");
+      blockGroup.appendChild(p);
+      return p;
+    });
+
+    // Visualize shared corner nodes.
+    const dotNodes = Array.from({ length: 14 }, () => {
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("class", "dot");
+      c.setAttribute("r", "2.6");
+      dotGroup.appendChild(c);
+      return c;
+    });
+
+    function rectPoints(xL, xR, yT, yB) {
+      return `${xL},${yB} ${xR},${yB} ${xR},${yT} ${xL},${yT}`;
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    const state = {
+      x1: { value: bounds.x1, target: bounds.x1, ttl: 0 },
+      x2: { value: bounds.x2, target: bounds.x2, ttl: 0 },
+      x3: { value: bounds.x3, target: bounds.x3, ttl: 0 },
+      x4: { value: bounds.x4, target: bounds.x4, ttl: 0 },
+      y1: { value: bounds.y1, target: bounds.y1, ttl: 0 }
+    };
+
+    let lastTs = 0;
+
+    function stepAxis(axis, dt, min, max, agility) {
+      axis.ttl -= dt;
+      if (axis.ttl <= 0) {
+        axis.target = rand(min, max);
+        axis.ttl = rand(220, 520); // slower retarget for calmer motion
+      }
+      const mix = 1 - Math.exp(-agility * dt / 1000);
+      axis.value += (axis.target - axis.value) * mix;
+      axis.value = clamp(axis.value, min, max);
+      return axis.value;
+    }
+
+    function render(tMs) {
+      const dt = lastTs ? (tMs - lastTs) : 16;
+      lastTs = tMs;
+
+      // Shared boundaries move on X/Y axes only.
+      // A line moving right makes one neighboring box wider and the other narrower.
+      let x1 = stepAxis(state.x1, dt, bounds.x0 + 20, bounds.x2 - 14, 9);
+      let x2 = stepAxis(state.x2, dt, x1 + 14, bounds.x3 - 14, 9);
+      let x3 = stepAxis(state.x3, dt, x2 + 14, bounds.x4 - 10, 8);
+      let x4 = stepAxis(state.x4, dt, x3 + 10, bounds.x5 - 9, 8);
+      let y1 = stepAxis(state.y1, dt, bounds.y0 + 28, bounds.y2 - 44, 7);
+
+      // Keep strict ordering so rectangles never flip.
+      x1 = clamp(x1, bounds.x0 + 20, bounds.x2 - 14);
+      x2 = clamp(x2, x1 + 14, bounds.x3 - 14);
+      x3 = clamp(x3, x2 + 14, bounds.x4 - 10);
+      x4 = clamp(x4, x3 + 10, bounds.x5 - 9);
+      y1 = clamp(y1, bounds.y0 + 28, bounds.y2 - 44);
+
+      // Top row: 2 boxes
+      shapes[0].setAttribute("points", rectPoints(x1, x2, bounds.y0, y1));
+      shapes[1].setAttribute("points", rectPoints(x3, x4, bounds.y0, y1));
+      // Bottom row: 3 boxes
+      shapes[2].setAttribute("points", rectPoints(bounds.x0, x1, y1, bounds.y2));
+      shapes[3].setAttribute("points", rectPoints(x2, x3, y1, bounds.y2));
+      shapes[4].setAttribute("points", rectPoints(x4, bounds.x5, y1, bounds.y2));
+
+      const corners = [
+        [bounds.x0, y1], [x1, y1], [x2, y1], [x3, y1], [x4, y1], [bounds.x5, y1],
+        [x1, bounds.y0], [x2, bounds.y0], [x3, bounds.y0], [x4, bounds.y0],
+        [bounds.x0, bounds.y2], [x1, bounds.y2], [x2, bounds.y2], [x3, bounds.y2], [x4, bounds.y2], [bounds.x5, bounds.y2]
+      ];
+
+      // Use first 14 points for a subtle guide only.
+      dotNodes.forEach((dot, i) => {
+        const [x, y] = corners[i];
+        dot.setAttribute("cx", x);
+        dot.setAttribute("cy", y);
+      });
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
