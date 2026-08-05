@@ -8,9 +8,7 @@
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
     body { display: grid; place-items: center; }
-    canvas { display: block; width: min(100vw, 200svh); height: auto; cursor: grab; touch-action: none;
-      background: linear-gradient(rgba(255,255,255,.075) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.075) 1px, transparent 1px), #000;
-      background-size: 80px 80px; }
+    canvas { display: block; width: min(100vw, 200svh); height: auto; cursor: grab; touch-action: none; background: #000; }
   </style>
 </head>
 <body>
@@ -26,12 +24,9 @@
       z: [-1.02, -0.69, -0.33, 0, 0.29, 0.66, 1.01]
     };
     const GROW_MIN = 55, GROW_MAX = 560, MAX_EDGES = 78, CAMERA = 4.2, SCALE = 610;
-    const startedAt = performance.now();
-    const random = randomFor(Date.now());
-    const nodes = new Map(), edges = [], edgeKeys = new Set();
-    const origin = nodeAt({ x: 0, y: 0, z: 0 });
-    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90;
-    let yaw = -0.72, pitch = 0.28, dragPoint = null;
+    const startedAt = performance.now(), random = randomFor(Date.now());
+    const nodes = new Map(), edges = [], edgeKeys = new Set(), origin = nodeAt({ x: 0, y: 0, z: 0 });
+    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90, yaw = -0.72, pitch = 0.28, dragPoint = null;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const lerp = (a, b, t) => a + (b - a) * t;
     const pointLerp = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: lerp(a.z, b.z, t) });
@@ -148,10 +143,10 @@
       const zoom = CAMERA / (CAMERA - z);
       return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom, depth: z };
     }
-    function drawLine(a, b) {
+    function drawLine(a, b, opacity) {
       const start = project(a), end = project(b);
       const depth = (start.depth + end.depth) * 0.5;
-      ctx.globalAlpha = 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
+      ctx.globalAlpha = opacity ?? 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
       ctx.lineWidth = (start.zoom + end.zoom) * 0.9;
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
@@ -190,9 +185,14 @@
     }
     function render(now) {
       update(now);
-      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT);
-      ctx.strokeStyle = "#fff";
-      ctx.fillStyle = "#fff";
+      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT); ctx.strokeStyle = "#9a9a9a";
+      for (let x = -2.4; x <= 2.4; x += 0.4) drawLine({ x, y: 0.9, z: -1.8 }, { x, y: 0.9, z: 1.8 }, 0.65);
+      for (let z = -1.8; z <= 1.8; z += 0.4) drawLine({ x: -2.4, y: 0.9, z }, { x: 2.4, y: 0.9, z }, 0.65);
+      for (const x of [-1.55, 1.55]) {
+        for (let y = -1.2; y <= 1.2; y += 0.4) drawLine({ x, y, z: -1.8 }, { x, y, z: 1.8 }, 0.65);
+        for (let z = -1.8; z <= 1.8; z += 0.4) drawLine({ x, y: -1.2, z }, { x, y: 1.2, z }, 0.65);
+      }
+      ctx.strokeStyle = "#fff"; ctx.fillStyle = "#fff";
       ctx.lineCap = "square";
       const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
       lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
