@@ -181,7 +181,7 @@
     }
     function render(now) {
       update(now);
-      if (!manualOrbit) { const orbit = (now - startedAt) * 0.00022; yaw = -0.72 + Math.sin(orbit) * 0.54; pitch = 0.28 + Math.sin(orbit * 0.73 + 1.1) * 0.18; }
+      if (!manualOrbit) { yaw = -0.72 + (now - startedAt) * 0.00022; pitch = 0.28; }
       ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "#fff"; ctx.fillStyle = "#fff";
       ctx.lineCap = "square";
