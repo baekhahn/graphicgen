@@ -3,249 +3,249 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Organic M Animation</title>
+  <title>Plane Split</title>
   <style>
-    :root {
-      --bg: #000;
-      --shape: #f3f3f3;
-      --dot: #63f5b7;
-    }
-
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100svh;
-      display: grid;
-      place-items: center;
-      background: radial-gradient(circle at 50% 30%, #101010 0%, #000 55%);
-      color: #fff;
-      font-family: "Pretendard", "Noto Sans KR", sans-serif;
-    }
-
-    .wrap {
-      width: min(92vw, 760px);
-      aspect-ratio: 375 / 281;
-      position: relative;
-    }
-
-    svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-      overflow: visible;
-    }
-
-    .block {
-      fill: var(--shape);
-      filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
-    }
-
-    .dot {
-      fill: var(--dot);
-      opacity: 0.2;
-    }
-
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+    body { display: grid; place-items: center; }
+    canvas { display: block; width: min(100vw, 200svh); height: auto; cursor: grab; touch-action: none; background: #000; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <svg viewBox="0 0 375 281" aria-label="Connected M with linked-corner resizing">
-      <g id="blocks"></g>
-      <g id="dots"></g>
-    </svg>
-  </div>
+  <canvas id="stage" width="1600" height="800" aria-label="마우스 드래그로 회전하는 흰 선 면 분할 애니메이션"></canvas>
 
   <script>
-    // Geometry from Vector.svg
-    const bounds = {
-      x0: 0,
-      x1: 121.447,
-      x2: 213.906,
-      x3: 291.805,
-      x4: 340.649,
-      x5: 374.999,
-      y0: 0,
-      y1: 103.938,
-      y2: 280.446
-    };
-
-    const blockGroup = document.getElementById("blocks");
-    const dotGroup = document.getElementById("dots");
-
-    const shapes = Array.from({ length: 5 }, () => {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      p.setAttribute("class", "block");
-      blockGroup.appendChild(p);
-      return p;
-    });
-
-    // Visualize shared corner nodes.
-    const dotNodes = Array.from({ length: 14 }, () => {
-      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      c.setAttribute("class", "dot");
-      c.setAttribute("r", "2.6");
-      dotGroup.appendChild(c);
-      return c;
-    });
-
-    function rectPoints(xL, xR, yT, yB) {
-      return `${xL},${yB} ${xR},${yB} ${xR},${yT} ${xL},${yT}`;
+    const canvas = document.getElementById("stage");
+    const ctx = canvas.getContext("2d");
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const CENTER = { x: WIDTH / 2, y: HEIGHT / 2 };
+    const ROOT = [{ x: 0, y: 0 }, { x: WIDTH, y: 0 }, { x: WIDTH, y: HEIGHT }, { x: 0, y: HEIGHT }];
+    const EPSILON = 0.001;
+    const LOOP_MS = 25_000;
+    const FADE_MS = 1_250;
+    const AXES = [{ x: 0, y: 1 }, { x: Math.cos(Math.PI / 6), y: Math.sin(Math.PI / 6) }, { x: Math.cos(Math.PI / 6), y: -Math.sin(Math.PI / 6) }];
+    let scene = null;
+    let sceneIndex = -1;
+    let yaw = -0.44;
+    let pitch = 0.28;
+    let dragPoint = null;
+    const startedAt = performance.now();
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+    const subtract = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+    const scale = (point, factor) => ({ x: point.x * factor, y: point.y * factor });
+    const dot = (a, b) => a.x * b.x + a.y * b.y;
+    const distanceSquared = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    const midpoint = (a, b) => scale(add(a, b), 0.5);
+    const smoothstep = (start, end, value) => { const t = clamp((value - start) / (end - start), 0, 1); return t * t * (3 - 2 * t); };
+    const easeOut = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
+    function project(point) {
+      const x = point.x / WIDTH * 2 - 1, y = point.y / HEIGHT - 0.5;
+      const depth = -x * Math.sin(yaw), rotatedX = x * Math.cos(yaw);
+      const rotatedY = y * Math.cos(pitch) - depth * Math.sin(pitch);
+      const rotatedDepth = y * Math.sin(pitch) + depth * Math.cos(pitch);
+      const zoom = 4 / (4 - rotatedDepth);
+      return { x: WIDTH / 2 + rotatedX * 600 * zoom, y: HEIGHT / 2 + rotatedY * 600 * zoom, zoom };
+    }
+    function polygonArea(points) {
+      let area = 0;
+      for (let i = 0; i < points.length; i += 1) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        area += a.x * b.y - b.x * a.y;
+      }
+      return Math.abs(area) * 0.5;
     }
 
-    function clamp(v, min, max) {
-      return Math.max(min, Math.min(max, v));
+    const face = (points, depth) => ({ points, area: polygonArea(points), depth });
+    function uniquePoints(points) {
+      const output = [];
+      for (const point of points) {
+        if (!output.length || distanceSquared(point, output[output.length - 1]) > EPSILON) output.push(point);
+      }
+      if (output.length > 1 && distanceSquared(output[0], output[output.length - 1]) <= EPSILON) output.pop();
+      return output;
+    }
+    function pointOnLine(a, b, sideA, sideB) {
+      return add(a, scale(subtract(b, a), sideA / (sideA - sideB)));
     }
 
-    function clamp01(v) {
-      return Math.max(0, Math.min(1, v));
+    function clipPolygon(points, linePoint, normal, keepSide) {
+      const output = [];
+      for (let i = 0; i < points.length; i += 1) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        const sideA = dot(subtract(a, linePoint), normal);
+        const sideB = dot(subtract(b, linePoint), normal);
+        const insideA = keepSide * sideA >= -EPSILON;
+        const insideB = keepSide * sideB >= -EPSILON;
+        if (insideA) output.push(a);
+        if (insideA !== insideB) output.push(pointOnLine(a, b, sideA, sideB));
+      }
+      return uniquePoints(output);
     }
 
-    function easeInOutCubic(v) {
-      const t = clamp01(v);
-      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    function chordInPolygon(points, linePoint, normal) {
+      const crossings = [];
+      for (let i = 0; i < points.length; i += 1) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        const sideA = dot(subtract(a, linePoint), normal);
+        const sideB = dot(subtract(b, linePoint), normal);
+        if (Math.abs(sideA) < EPSILON) crossings.push(a);
+        if (sideA * sideB < -EPSILON) crossings.push(pointOnLine(a, b, sideA, sideB));
+      }
+      const pointsOnLine = uniquePoints(crossings);
+      let pair = null;
+      let longest = 0;
+      for (let i = 0; i < pointsOnLine.length; i += 1) {
+        for (let j = i + 1; j < pointsOnLine.length; j += 1) {
+          const length = distanceSquared(pointsOnLine[i], pointsOnLine[j]);
+          if (length > longest) [longest, pair] = [length, [pointsOnLine[i], pointsOnLine[j]]];
+        }
+      }
+      return pair;
     }
 
-    function easeOutBack(v) {
-      const t = clamp01(v);
-      const c1 = 1.70158;
-      const c3 = c1 + 1;
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    function splitFace(target, linePoint, direction) {
+      const normal = { x: -direction.y, y: direction.x };
+      const chord = chordInPolygon(target.points, linePoint, normal);
+      if (!chord) return null;
+      const positive = clipPolygon(target.points, linePoint, normal, 1);
+      const negative = clipPolygon(target.points, linePoint, normal, -1);
+      if (positive.length < 3 || negative.length < 3) return null;
+      const first = face(positive, target.depth + 1);
+      const second = face(negative, target.depth + 1);
+      return first.area >= 1 && second.area >= 1 ? { first, second, chord } : null;
     }
 
-    function blendEase(v) {
-      // Primary cubic easing + slight back-overshoot flavor for livelier motion.
-      const a = easeInOutCubic(v);
-      const b = easeOutBack(v);
-      return a * 0.85 + b * 0.15;
+    function splitAllFaces(faces, linePoint, direction) {
+      return faces.flatMap((target) => {
+        const split = splitFace(target, linePoint, direction);
+        return split ? [split.first, split.second] : [target];
+      });
     }
 
-    function damp(current, target, lambda, dtSec) {
-      return current + (target - current) * (1 - Math.exp(-lambda * dtSec));
+    function randomFor(seed) {
+      let state = seed >>> 0;
+      return () => {
+        state += 0x6D2B79F5;
+        let value = state;
+        value = Math.imul(value ^ (value >>> 15), value | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+      };
     }
 
-    function catmullRom(p0, p1, p2, p3, t) {
-      const t2 = t * t;
-      const t3 = t2 * t;
-      return 0.5 * (
-        (2 * p1) +
-        (-p0 + p2) * t +
-        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-        (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-      );
+    function chooseFace(faces, random) {
+      const candidates = faces.filter((candidate) => candidate.area > 3_200);
+      let threshold = random() * candidates.reduce((sum, candidate) => sum + candidate.area ** 0.72, 0);
+      for (const candidate of candidates) {
+        threshold -= candidate.area ** 0.72;
+        if (threshold <= 0) return candidate;
+      }
+      return candidates[candidates.length - 1];
     }
 
-    const baseWidths = [
-      bounds.x1 - bounds.x0, // bottom 1
-      bounds.x2 - bounds.x1, // top 4
-      bounds.x3 - bounds.x2, // bottom 2
-      bounds.x4 - bounds.x3, // top 5
-      bounds.x5 - bounds.x4  // bottom 3
-    ];
+    function divideCandidate(target, axis, random) {
+      const direction = AXES[axis];
+      const normal = { x: -direction.y, y: direction.x };
+      const projections = target.points.map((point) => dot(point, normal));
+      const minimum = Math.min(...projections);
+      const maximum = Math.max(...projections);
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const linePoint = scale(normal, minimum + (maximum - minimum) * (0.30 + random() * 0.40));
+        const split = splitFace(target, linePoint, direction);
+        if (!split) continue;
+        const ratio = Math.min(split.first.area, split.second.area) / target.area;
+        const chordLength = Math.sqrt(distanceSquared(split.chord[0], split.chord[1]));
+        if (ratio >= 0.14 && chordLength >= 70) return split;
+      }
+      return null;
+    }
 
-    // Width multipliers in order: [bottom1, top4, bottom2, top5, bottom3]
-    // Sequence: 1 -> 2 -> 3 -> 2 -> 1
-    const keyframes = [
-      [1.55, 1.24, 0.72, 0.86, 0.74], // 1 grows
-      [0.84, 1.08, 1.46, 0.96, 0.80], // 2 grows
-      [0.76, 0.88, 0.82, 1.20, 1.56], // 3 grows
-      [0.84, 1.08, 1.46, 0.96, 0.80], // 2 grows again
-      [1.55, 1.24, 0.72, 0.86, 0.74]  // back to 1
-    ];
-
-    const frameMs = 420;
-    const totalMs = keyframes.length * frameMs;
-    const baseY1 = bounds.y1;
-    const yAmp = 22;
-    const yCycleMs = totalMs;
-    const renderState = { x1: bounds.x1, x2: bounds.x2, x3: bounds.x3, x4: bounds.x4, y1: bounds.y1 };
-    let lastTs = 0;
-
-    function composeWidths(tMs) {
-      const n = keyframes.length;
-      const timeWarp = 0.16 * Math.sin(tMs * 0.0011) + 0.07 * Math.sin(tMs * 0.0019 + 0.8);
-      const pos = (((tMs % totalMs) / frameMs) + timeWarp + n) % n;
-      const i1 = Math.floor(pos);
-      const i0 = (i1 - 1 + n) % n;
-      const i2 = (i1 + 1) % n;
-      const i3 = (i1 + 2) % n;
-      const mix = blendEase(pos - i1);
-
-      const raw = baseWidths.map((w, idx) => {
-        const m = catmullRom(
-          keyframes[i0][idx],
-          keyframes[i1][idx],
-          keyframes[i2][idx],
-          keyframes[i3][idx],
-          mix
-        );
-        const drift = 1 + 0.035 * Math.sin(tMs * 0.0009 + idx * 1.37);
-        return w * m * drift;
+    function makeScene(index) {
+      const random = randomFor(0x811C9DC5 ^ Math.imul(index + 1, 0x9E3779B1));
+      const events = [];
+      let faces = [face(ROOT, 0)];
+      AXES.forEach((direction, axis) => {
+        const chord = chordInPolygon(ROOT, CENTER, { x: -direction.y, y: direction.x });
+        events.push({ a: chord[0], b: chord[1], origin: CENTER, start: 620 + axis * 760, duration: 650 });
+        faces = splitAllFaces(faces, CENTER, direction);
       });
 
-      const rawSum = raw.reduce((sum, v) => sum + v, 0);
-      const total = bounds.x5 - bounds.x0;
-      const scale = total / rawSum;
-      return raw.map((v) => v * scale);
+      let lastAxis = 2;
+      let splits = 0;
+      for (let attempts = 0; splits < 36 && attempts < 240; attempts += 1) {
+        const target = chooseFace(faces, random);
+        if (!target) break;
+        const axis = (lastAxis + 1 + Math.floor(random() * 2)) % AXES.length;
+        const split = divideCandidate(target, axis, random);
+        if (!split) continue;
+        faces.splice(faces.indexOf(target), 1, split.first, split.second);
+        events.push({
+          a: split.chord[0], b: split.chord[1], origin: midpoint(split.chord[0], split.chord[1]),
+          start: 3_260 + splits * 520, duration: 620
+        });
+        lastAxis = axis;
+        splits += 1;
+      }
+      return events;
     }
 
-    function render(tMs) {
-      const dtSec = lastTs ? (tMs - lastTs) / 1000 : 1 / 60;
-      lastTs = tMs;
-      const [w1, w4, w2, w5, w3] = composeWidths(tMs);
+    function drawLine(a, b, opacity) {
+      const start = project(a), end = project(b);
+      ctx.globalAlpha = opacity;
+      ctx.lineWidth = start.zoom + end.zoom;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
 
-      const targetX1 = bounds.x0 + w1;
-      const targetX2 = targetX1 + w4;
-      const targetX3 = targetX2 + w2;
-      const targetX4 = targetX3 + w5;
+    function drawEvent(event, elapsed, opacity) {
+      const progress = clamp(elapsed / event.duration, 0, 1);
+      if (progress >= 1) return drawLine(event.a, event.b, opacity);
+      const growth = easeOut(progress);
+      drawLine(event.origin, add(event.origin, scale(subtract(event.a, event.origin), growth)), opacity);
+      drawLine(event.origin, add(event.origin, scale(subtract(event.b, event.origin), growth)), opacity);
+    }
 
-      const yProgress = (tMs % yCycleMs) / yCycleMs;
-      const yWave = Math.sin(yProgress * Math.PI * 2) + 0.28 * Math.sin(yProgress * Math.PI * 4 + 0.6);
-      const yShaped = yWave >= 0 ? easeOutBack(clamp01(yWave)) : -easeInOutCubic(clamp01(-yWave));
-      const targetY1 = clamp(baseY1 + yShaped * yAmp, bounds.y0 + 40, bounds.y2 - 44);
+    function render(now) {
+      const elapsed = now - startedAt;
+      const index = Math.floor(elapsed / LOOP_MS);
+      const phase = elapsed % LOOP_MS;
+      if (index !== sceneIndex) [sceneIndex, scene] = [index, makeScene(index)];
 
-      renderState.x1 = damp(renderState.x1, targetX1, 11.5, dtSec);
-      renderState.x2 = damp(renderState.x2, targetX2, 10.5, dtSec);
-      renderState.x3 = damp(renderState.x3, targetX3, 10.2, dtSec);
-      renderState.x4 = damp(renderState.x4, targetX4, 9.8, dtSec);
-      renderState.y1 = damp(renderState.y1, targetY1, 8.5, dtSec);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.strokeStyle = "#fff";
+      ctx.lineCap = "square";
+      ctx.lineJoin = "miter";
 
-      let x1 = renderState.x1;
-      let x2 = renderState.x2;
-      let x3 = renderState.x3;
-      let x4 = renderState.x4;
-      let y1 = renderState.y1;
-
-      // Hard safety clamp to preserve valid rectangles.
-      x1 = clamp(x1, bounds.x0 + 10, bounds.x2 - 8);
-      x2 = clamp(x2, x1 + 8, bounds.x3 - 8);
-      x3 = clamp(x3, x2 + 8, bounds.x4 - 8);
-      x4 = clamp(x4, x3 + 8, bounds.x5 - 8);
-      y1 = clamp(y1, bounds.y0 + 40, bounds.y2 - 44);
-
-      // Top row: 2 boxes
-      shapes[0].setAttribute("points", rectPoints(x1, x2, bounds.y0, y1));
-      shapes[1].setAttribute("points", rectPoints(x3, x4, bounds.y0, y1));
-      // Bottom row: 3 boxes
-      shapes[2].setAttribute("points", rectPoints(bounds.x0, x1, y1, bounds.y2));
-      shapes[3].setAttribute("points", rectPoints(x2, x3, y1, bounds.y2));
-      shapes[4].setAttribute("points", rectPoints(x4, bounds.x5, y1, bounds.y2));
-
-      const corners = [
-        [bounds.x0, y1], [x1, y1], [x2, y1], [x3, y1], [x4, y1], [bounds.x5, y1],
-        [x1, bounds.y0], [x2, bounds.y0], [x3, bounds.y0], [x4, bounds.y0],
-        [bounds.x0, bounds.y2], [x1, bounds.y2], [x2, bounds.y2], [x3, bounds.y2], [x4, bounds.y2], [bounds.x5, bounds.y2]
-      ];
-
-      // Use first 14 points for a subtle guide only.
-      dotNodes.forEach((dot, i) => {
-        const [x, y] = corners[i];
-        dot.setAttribute("cx", x);
-        dot.setAttribute("cy", y);
-      });
-
+      const opacity = 1 - smoothstep(LOOP_MS - FADE_MS, LOOP_MS, phase);
+      const frameOpacity = opacity * smoothstep(320, 900, phase);
+      for (let i = 0; i < ROOT.length; i += 1) drawLine(ROOT[i], ROOT[(i + 1) % ROOT.length], frameOpacity);
+      for (const event of scene) {
+        const localElapsed = phase - event.start;
+        if (localElapsed > 0) drawEvent(event, localElapsed, opacity);
+      }
       requestAnimationFrame(render);
     }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      dragPoint = { x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!dragPoint) return;
+      yaw += (event.clientX - dragPoint.x) * 0.008;
+      pitch = clamp(pitch + (event.clientY - dragPoint.y) * 0.008, -1.15, 1.15);
+      dragPoint = { x: event.clientX, y: event.clientY };
+    });
+    ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; }));
 
     requestAnimationFrame(render);
   </script>
