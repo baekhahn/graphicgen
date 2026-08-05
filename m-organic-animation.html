@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Plane Split</title>
+  <title>Volumetric Split</title>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
@@ -12,120 +12,29 @@
   </style>
 </head>
 <body>
-  <canvas id="stage" width="1600" height="800" aria-label="마우스 드래그로 회전하는 흰 선 면 분할 애니메이션"></canvas>
+  <canvas id="stage" width="1600" height="800" aria-label="XYZ 축으로 공간을 연속 분할하고 마우스로 회전하는 3차원 애니메이션"></canvas>
 
   <script>
     const canvas = document.getElementById("stage");
     const ctx = canvas.getContext("2d");
-    const WIDTH = canvas.width;
-    const HEIGHT = canvas.height;
-    const CENTER = { x: WIDTH / 2, y: HEIGHT / 2 };
-    const ROOT = [{ x: 0, y: 0 }, { x: WIDTH, y: 0 }, { x: WIDTH, y: HEIGHT }, { x: 0, y: HEIGHT }];
-    const EPSILON = 0.001;
-    const LOOP_MS = 25_000;
-    const FADE_MS = 1_250;
-    const AXES = [{ x: 0, y: 1 }, { x: Math.cos(Math.PI / 6), y: Math.sin(Math.PI / 6) }, { x: Math.cos(Math.PI / 6), y: -Math.sin(Math.PI / 6) }];
-    let scene = null;
-    let sceneIndex = -1;
-    let yaw = -0.44;
-    let pitch = 0.28;
-    let dragPoint = null;
+    const WIDTH = canvas.width, HEIGHT = canvas.height;
+    const ROOT = { min: { x: -1.18, y: -0.66, z: -0.76 }, max: { x: 1.18, y: 0.66, z: 0.76 } };
+    const AXES = ["x", "y", "z"];
+    const EDGE_INDEXES = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]];
+    const MOVE_MS = 650, MIN_LEAVES = 8, MAX_LEAVES = 38, CAMERA = 4.2, SCALE = 530;
     const startedAt = performance.now();
+    const random = randomFor(Date.now());
+    const nodeFor = (box) => ({ box, cut: null, a: null, b: null, lockUntil: 0 });
+    let tree = nodeFor(ROOT), action = null, nextActionAt = startedAt + 420;
+    let yaw = -0.68, pitch = 0.32, dragPoint = null, lastAxis = -1;
+    const openingAxes = ["x", "y", "z"];
+
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-    const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
-    const subtract = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
-    const scale = (point, factor) => ({ x: point.x * factor, y: point.y * factor });
-    const dot = (a, b) => a.x * b.x + a.y * b.y;
-    const distanceSquared = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-    const midpoint = (a, b) => scale(add(a, b), 0.5);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const pointLerp = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: lerp(a.z, b.z, t) });
+    const midpoint = (a, b) => pointLerp(a, b, 0.5);
     const smoothstep = (start, end, value) => { const t = clamp((value - start) / (end - start), 0, 1); return t * t * (3 - 2 * t); };
     const easeOut = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
-    function project(point) {
-      const x = point.x / WIDTH * 2 - 1, y = point.y / HEIGHT - 0.5;
-      const depth = -x * Math.sin(yaw), rotatedX = x * Math.cos(yaw);
-      const rotatedY = y * Math.cos(pitch) - depth * Math.sin(pitch);
-      const rotatedDepth = y * Math.sin(pitch) + depth * Math.cos(pitch);
-      const zoom = 4 / (4 - rotatedDepth);
-      return { x: WIDTH / 2 + rotatedX * 600 * zoom, y: HEIGHT / 2 + rotatedY * 600 * zoom, zoom };
-    }
-    function polygonArea(points) {
-      let area = 0;
-      for (let i = 0; i < points.length; i += 1) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        area += a.x * b.y - b.x * a.y;
-      }
-      return Math.abs(area) * 0.5;
-    }
-
-    const face = (points, depth) => ({ points, area: polygonArea(points), depth });
-    function uniquePoints(points) {
-      const output = [];
-      for (const point of points) {
-        if (!output.length || distanceSquared(point, output[output.length - 1]) > EPSILON) output.push(point);
-      }
-      if (output.length > 1 && distanceSquared(output[0], output[output.length - 1]) <= EPSILON) output.pop();
-      return output;
-    }
-    function pointOnLine(a, b, sideA, sideB) {
-      return add(a, scale(subtract(b, a), sideA / (sideA - sideB)));
-    }
-
-    function clipPolygon(points, linePoint, normal, keepSide) {
-      const output = [];
-      for (let i = 0; i < points.length; i += 1) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        const sideA = dot(subtract(a, linePoint), normal);
-        const sideB = dot(subtract(b, linePoint), normal);
-        const insideA = keepSide * sideA >= -EPSILON;
-        const insideB = keepSide * sideB >= -EPSILON;
-        if (insideA) output.push(a);
-        if (insideA !== insideB) output.push(pointOnLine(a, b, sideA, sideB));
-      }
-      return uniquePoints(output);
-    }
-
-    function chordInPolygon(points, linePoint, normal) {
-      const crossings = [];
-      for (let i = 0; i < points.length; i += 1) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        const sideA = dot(subtract(a, linePoint), normal);
-        const sideB = dot(subtract(b, linePoint), normal);
-        if (Math.abs(sideA) < EPSILON) crossings.push(a);
-        if (sideA * sideB < -EPSILON) crossings.push(pointOnLine(a, b, sideA, sideB));
-      }
-      const pointsOnLine = uniquePoints(crossings);
-      let pair = null;
-      let longest = 0;
-      for (let i = 0; i < pointsOnLine.length; i += 1) {
-        for (let j = i + 1; j < pointsOnLine.length; j += 1) {
-          const length = distanceSquared(pointsOnLine[i], pointsOnLine[j]);
-          if (length > longest) [longest, pair] = [length, [pointsOnLine[i], pointsOnLine[j]]];
-        }
-      }
-      return pair;
-    }
-
-    function splitFace(target, linePoint, direction) {
-      const normal = { x: -direction.y, y: direction.x };
-      const chord = chordInPolygon(target.points, linePoint, normal);
-      if (!chord) return null;
-      const positive = clipPolygon(target.points, linePoint, normal, 1);
-      const negative = clipPolygon(target.points, linePoint, normal, -1);
-      if (positive.length < 3 || negative.length < 3) return null;
-      const first = face(positive, target.depth + 1);
-      const second = face(negative, target.depth + 1);
-      return first.area >= 1 && second.area >= 1 ? { first, second, chord } : null;
-    }
-
-    function splitAllFaces(faces, linePoint, direction) {
-      return faces.flatMap((target) => {
-        const split = splitFace(target, linePoint, direction);
-        return split ? [split.first, split.second] : [target];
-      });
-    }
 
     function randomFor(seed) {
       let state = seed >>> 0;
@@ -138,100 +47,157 @@
       };
     }
 
-    function chooseFace(faces, random) {
-      const candidates = faces.filter((candidate) => candidate.area > 3_200);
-      let threshold = random() * candidates.reduce((sum, candidate) => sum + candidate.area ** 0.72, 0);
-      for (const candidate of candidates) {
-        threshold -= candidate.area ** 0.72;
-        if (threshold <= 0) return candidate;
-      }
-      return candidates[candidates.length - 1];
+    function boxVolume(box) {
+      return (box.max.x - box.min.x) * (box.max.y - box.min.y) * (box.max.z - box.min.z);
     }
 
-    function divideCandidate(target, axis, random) {
-      const direction = AXES[axis];
-      const normal = { x: -direction.y, y: direction.x };
-      const projections = target.points.map((point) => dot(point, normal));
-      const minimum = Math.min(...projections);
-      const maximum = Math.max(...projections);
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        const linePoint = scale(normal, minimum + (maximum - minimum) * (0.30 + random() * 0.40));
-        const split = splitFace(target, linePoint, direction);
-        if (!split) continue;
-        const ratio = Math.min(split.first.area, split.second.area) / target.area;
-        const chordLength = Math.sqrt(distanceSquared(split.chord[0], split.chord[1]));
-        if (ratio >= 0.14 && chordLength >= 70) return split;
-      }
-      return null;
+    function boxCorners(box) {
+      const { min, max } = box;
+      return [
+        { x: min.x, y: min.y, z: min.z }, { x: max.x, y: min.y, z: min.z },
+        { x: min.x, y: max.y, z: min.z }, { x: max.x, y: max.y, z: min.z },
+        { x: min.x, y: min.y, z: max.z }, { x: max.x, y: min.y, z: max.z },
+        { x: min.x, y: max.y, z: max.z }, { x: max.x, y: max.y, z: max.z }
+      ];
     }
 
-    function makeScene(index) {
-      const random = randomFor(0x811C9DC5 ^ Math.imul(index + 1, 0x9E3779B1));
-      const events = [];
-      let faces = [face(ROOT, 0)];
-      AXES.forEach((direction, axis) => {
-        const chord = chordInPolygon(ROOT, CENTER, { x: -direction.y, y: direction.x });
-        events.push({ a: chord[0], b: chord[1], origin: CENTER, start: 620 + axis * 760, duration: 650 });
-        faces = splitAllFaces(faces, CENTER, direction);
-      });
+    function planeCorners(box, axis, value) {
+      const { min, max } = box;
+      if (axis === "x") return [{ x: value, y: min.y, z: min.z }, { x: value, y: max.y, z: min.z }, { x: value, y: max.y, z: max.z }, { x: value, y: min.y, z: max.z }];
+      if (axis === "y") return [{ x: min.x, y: value, z: min.z }, { x: max.x, y: value, z: min.z }, { x: max.x, y: value, z: max.z }, { x: min.x, y: value, z: max.z }];
+      return [{ x: min.x, y: min.y, z: value }, { x: max.x, y: min.y, z: value }, { x: max.x, y: max.y, z: value }, { x: min.x, y: max.y, z: value }];
+    }
 
-      let lastAxis = 2;
-      let splits = 0;
-      for (let attempts = 0; splits < 36 && attempts < 240; attempts += 1) {
-        const target = chooseFace(faces, random);
-        if (!target) break;
-        const axis = (lastAxis + 1 + Math.floor(random() * 2)) % AXES.length;
-        const split = divideCandidate(target, axis, random);
-        if (!split) continue;
-        faces.splice(faces.indexOf(target), 1, split.first, split.second);
-        events.push({
-          a: split.chord[0], b: split.chord[1], origin: midpoint(split.chord[0], split.chord[1]),
-          start: 3_260 + splits * 520, duration: 620
-        });
-        lastAxis = axis;
-        splits += 1;
+    function splitBox(box, axis, value) {
+      const lower = { min: { ...box.min }, max: { ...box.max } }, upper = { min: { ...box.min }, max: { ...box.max } };
+      lower.max[axis] = value;
+      upper.min[axis] = value;
+      return [lower, upper];
+    }
+
+    function leaves(node, output = []) {
+      if (!node.cut) output.push(node);
+      else { leaves(node.a, output); leaves(node.b, output); }
+      return output;
+    }
+
+    function cherries(node, output = []) {
+      if (!node.cut) return output;
+      if (!node.a.cut && !node.b.cut) output.push(node);
+      else { cherries(node.a, output); cherries(node.b, output); }
+      return output;
+    }
+
+    function pickByVolume(nodes) {
+      let threshold = random() * nodes.reduce((sum, node) => sum + boxVolume(node.box) ** 0.72, 0);
+      for (const node of nodes) {
+        threshold -= boxVolume(node.box) ** 0.72;
+        if (threshold <= 0) return node;
       }
-      return events;
+      return nodes[nodes.length - 1];
+    }
+
+    function chooseAxis(node) {
+      const viable = AXES.filter((axis) => node.box.max[axis] - node.box.min[axis] > 0.10);
+      const opening = openingAxes[0];
+      if (viable.includes(opening)) {
+        openingAxes.shift();
+        lastAxis = AXES.indexOf(opening);
+        return opening;
+      }
+      const different = viable.filter((axis) => axis !== AXES[lastAxis]);
+      const choices = different.length ? different : viable;
+      const axis = choices[Math.floor(random() * choices.length)];
+      lastAxis = AXES.indexOf(axis);
+      return axis;
+    }
+
+    function startSplit(node, now) {
+      const axis = chooseAxis(node);
+      if (!axis) return false;
+      const value = lerp(node.box.min[axis], node.box.max[axis], 0.30 + random() * 0.40);
+      const [lower, upper] = splitBox(node.box, axis, value);
+      node.a = nodeFor(lower);
+      node.b = nodeFor(upper);
+      node.cut = { corners: planeCorners(node.box, axis, value), direction: 1, started: now };
+      node.lockUntil = now + 2_500;
+      action = { node, mode: "in", started: now };
+      return true;
+    }
+
+    function startMerge(node, now) {
+      node.cut.direction = -1;
+      node.cut.started = now;
+      action = { node, mode: "out", started: now };
+    }
+
+    function startChange(now) {
+      const leafNodes = leaves(tree), cutNodes = cherries(tree);
+      const shouldSplit = leafNodes.length < MIN_LEAVES || (leafNodes.length < MAX_LEAVES && (!cutNodes.length || random() < 0.57));
+      if (shouldSplit && startSplit(pickByVolume(leafNodes), now)) return true;
+      const cooled = cutNodes.filter((node) => node.lockUntil <= now);
+      if (!cooled.length) return false;
+      startMerge(pickByVolume(cooled), now);
+      return true;
+    }
+
+    function tick(now) {
+      if (action && now - action.started >= MOVE_MS) {
+        if (action.mode === "in") action.node.cut.direction = 0;
+        else Object.assign(action.node, { cut: null, a: null, b: null });
+        action = null;
+        nextActionAt = now + 80 + random() * 160;
+      }
+      if (!action && now >= nextActionAt && !startChange(now)) nextActionAt = now + 180;
+    }
+
+    function project(point) {
+      const x = point.x * Math.cos(yaw) + point.z * Math.sin(yaw);
+      const depth = -point.x * Math.sin(yaw) + point.z * Math.cos(yaw);
+      const y = point.y * Math.cos(pitch) - depth * Math.sin(pitch);
+      const z = point.y * Math.sin(pitch) + depth * Math.cos(pitch);
+      const zoom = CAMERA / (CAMERA - z);
+      return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom };
     }
 
     function drawLine(a, b, opacity) {
       const start = project(a), end = project(b);
       ctx.globalAlpha = opacity;
-      ctx.lineWidth = start.zoom + end.zoom;
+      ctx.lineWidth = (start.zoom + end.zoom) * 0.9;
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
     }
 
-    function drawEvent(event, elapsed, opacity) {
-      const progress = clamp(elapsed / event.duration, 0, 1);
-      if (progress >= 1) return drawLine(event.a, event.b, opacity);
-      const growth = easeOut(progress);
-      drawLine(event.origin, add(event.origin, scale(subtract(event.a, event.origin), growth)), opacity);
-      drawLine(event.origin, add(event.origin, scale(subtract(event.b, event.origin), growth)), opacity);
+    function drawPlane(corners, progress, opacity) {
+      for (let i = 0; i < 4; i += 1) {
+        const a = corners[i], b = corners[(i + 1) % 4], center = midpoint(a, b), growth = easeOut(progress);
+        drawLine(center, pointLerp(center, a, growth), opacity);
+        drawLine(center, pointLerp(center, b, growth), opacity);
+      }
+    }
+
+    function collectCuts(node, now, output = []) {
+      if (!node.cut) return output;
+      const ratio = clamp((now - node.cut.started) / MOVE_MS, 0, 1);
+      const progress = node.cut.direction === 1 ? easeOut(ratio) : node.cut.direction === -1 ? 1 - easeOut(ratio) : 1;
+      output.push({ corners: node.cut.corners, progress, opacity: node.cut.direction === -1 ? progress : 1 });
+      collectCuts(node.a, now, output);
+      collectCuts(node.b, now, output);
+      return output;
     }
 
     function render(now) {
-      const elapsed = now - startedAt;
-      const index = Math.floor(elapsed / LOOP_MS);
-      const phase = elapsed % LOOP_MS;
-      if (index !== sceneIndex) [sceneIndex, scene] = [index, makeScene(index)];
-
+      tick(now);
       ctx.globalAlpha = 1;
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "#fff";
       ctx.lineCap = "square";
-      ctx.lineJoin = "miter";
-
-      const opacity = 1 - smoothstep(LOOP_MS - FADE_MS, LOOP_MS, phase);
-      const frameOpacity = opacity * smoothstep(320, 900, phase);
-      for (let i = 0; i < ROOT.length; i += 1) drawLine(ROOT[i], ROOT[(i + 1) % ROOT.length], frameOpacity);
-      for (const event of scene) {
-        const localElapsed = phase - event.start;
-        if (localElapsed > 0) drawEvent(event, localElapsed, opacity);
-      }
+      const corners = boxCorners(ROOT);
+      for (const [from, to] of EDGE_INDEXES) drawLine(corners[from], corners[to], 0.82);
+      for (const cut of collectCuts(tree, now)) drawPlane(cut.corners, cut.progress, cut.opacity);
       requestAnimationFrame(render);
     }
 
@@ -246,7 +212,6 @@
       dragPoint = { x: event.clientX, y: event.clientY };
     });
     ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; }));
-
     requestAnimationFrame(render);
   </script>
 </body>
