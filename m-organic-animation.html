@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergent XYZ</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+    body { display: grid; place-items: center; }
+    canvas { display: block; width: min(100vw, 200svh); height: auto; cursor: grab; touch-action: none;
+      background: linear-gradient(rgba(255,255,255,.075) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.075) 1px, transparent 1px), #000;
+      background-size: 80px 80px; }
+  </style>
+</head>
+<body>
+  <canvas id="stage" width="1600" height="800" aria-label="중심점에서 XYZ 축을 따라 선이 자라며 교차점에 점이 생기는 3차원 애니메이션"></canvas>
+  <script>
+    const canvas = document.getElementById("stage");
+    const ctx = canvas.getContext("2d");
+    const WIDTH = canvas.width, HEIGHT = canvas.height;
+    const AXES = ["x", "y", "z"];
+    const LEVELS = {
+      x: [-1.28, -0.94, -0.58, -0.22, 0, 0.31, 0.69, 1.04, 1.30],
+      y: [-0.68, -0.47, -0.24, 0, 0.25, 0.49, 0.69],
+      z: [-1.02, -0.69, -0.33, 0, 0.29, 0.66, 1.01]
+    };
+    const GROW_MIN = 55, GROW_MAX = 560, MAX_EDGES = 78, CAMERA = 4.2, SCALE = 610;
+    const startedAt = performance.now();
+    const random = randomFor(Date.now());
+    const nodes = new Map(), edges = [], edgeKeys = new Set();
+    const origin = nodeAt({ x: 0, y: 0, z: 0 });
+    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90;
+    let yaw = -0.72, pitch = 0.28, dragPoint = null;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const pointLerp = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: lerp(a.z, b.z, t) });
+    const easeOut = (value, curve = 3) => 1 - (1 - clamp(value, 0, 1)) ** curve;
+    function pointKey(point) { return `${point.x}|${point.y}|${point.z}`; }
+    const edgeKey = (a, b) => a.id < b.id ? `${a.id}/${b.id}` : `${b.id}/${a.id}`;
+    const samePlane = (a, b, axis) => AXES.every((key) => key === axis || a[key] === b[key]);
+    const between = (value, a, b) => value >= Math.min(a, b) - 0.0001 && value <= Math.max(a, b) + 0.0001;
+    function randomFor(seed) {
+      let state = seed >>> 0;
+      return () => {
+        state += 0x6D2B79F5;
+        let value = state;
+        value = Math.imul(value ^ (value >>> 15), value | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+      };
+    }
+    function nodeAt(point) {
+      const id = pointKey(point);
+      if (!nodes.has(id)) nodes.set(id, { ...point, id, degree: 0 });
+      return nodes.get(id);
+    }
+    function rootNodes() {
+      const connected = new Set([origin]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const edge of edges) if (connected.has(edge.a) !== connected.has(edge.b)) {
+          connected.add(connected.has(edge.a) ? edge.b : edge.a); changed = true;
+        }
+      }
+      return [...connected];
+    }
+    function pickStart() {
+      const choices = rootNodes();
+      let threshold = random() * choices.reduce((sum, node) => sum + 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26)), 0);
+      for (const node of choices) {
+        threshold -= 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26));
+        if (threshold <= 0) return node;
+      }
+      return origin;
+    }
+    function chooseAxis(start, forced) {
+      if (forced) return forced;
+      const choices = AXES.filter((axis) => LEVELS[axis].some((value) => value !== start[axis]));
+      const different = choices.filter((axis) => axis !== AXES[lastAxis]);
+      const axis = (different.length ? different : choices)[Math.floor(random() * (different.length ? different.length : choices.length))];
+      lastAxis = AXES.indexOf(axis);
+      return axis;
+    }
+    function overlaps(a, b, axis) {
+      const low = Math.min(a[axis], b[axis]), high = Math.max(a[axis], b[axis]);
+      return edges.some((edge) => edge.axis === axis && samePlane(a, edge.a, axis) && Math.max(low, Math.min(edge.a[axis], edge.b[axis])) < Math.min(high, Math.max(edge.a[axis], edge.b[axis])) - 0.0001);
+    }
+    function endpointFor(a, axis) {
+      const peers = [...nodes.values()].filter((node) => node !== a && samePlane(a, node, axis) && !edgeKeys.has(edgeKey(a, node)) && !overlaps(a, node, axis));
+      if (peers.length && random() < 0.46) return peers[Math.floor(random() * peers.length)];
+      const direction = a[axis] === 0 ? (random() < 0.5 ? -1 : 1) : (random() < 0.76 ? Math.sign(a[axis]) : -Math.sign(a[axis]));
+      const values = LEVELS[axis].filter((value) => value !== a[axis]);
+      const outward = values.filter((value) => (value - a[axis]) * direction > 0);
+      const nearby = (outward.length ? outward : values).filter((value) => Math.abs(value - a[axis]) <= 0.76);
+      const value = (nearby.length ? nearby : (outward.length ? outward : values))[Math.floor(random() * (nearby.length || outward.length || values.length))];
+      return nodeAt({ ...a, [axis]: value });
+    }
+    function addLine(now) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const forced = openingAxis < AXES.length ? AXES[openingAxis] : null;
+        const a = forced ? origin : pickStart();
+        const axis = chooseAxis(a, forced);
+        const b = endpointFor(a, axis);
+        const id = edgeKey(a, b);
+        if (a === b || edgeKeys.has(id) || overlaps(a, b, axis)) continue;
+        const anchored = a === origin;
+        const edge = {
+          a, b, axis, id, born: now, grow: GROW_MIN + random() ** 2 * (GROW_MAX - GROW_MIN), curve: 1.6 + random() * 4.4,
+          hold: (anchored ? 10_500 : 7_400) + random() * (anchored ? 4_500 : 5_800),
+          shrink: 600 + random() * 900
+        };
+        edges.push(edge);
+        edgeKeys.add(id);
+        a.degree += 1;
+        b.degree += 1;
+        if (forced) openingAxis += 1;
+        return true;
+      }
+      return false;
+    }
+    function amount(edge, now) {
+      const age = now - edge.born;
+      if (age < edge.grow) return easeOut(age / edge.grow, edge.curve);
+      if (age < edge.grow + edge.hold) return 1;
+      return clamp(1 - ((age - edge.grow - edge.hold) / edge.shrink) ** 2, 0, 1);
+    }
+    function removeEdge(edge, index) {
+      edgeKeys.delete(edge.id);
+      edge.a.degree -= 1;
+      edge.b.degree -= 1;
+      if (edge.a !== origin && edge.a.degree === 0) nodes.delete(edge.a.id);
+      if (edge.b !== origin && edge.b.degree === 0) nodes.delete(edge.b.id);
+      edges.splice(index, 1);
+    }
+    function update(now) {
+      for (let index = edges.length - 1; index >= 0; index -= 1) if (amount(edges[index], now) <= 0) removeEdge(edges[index], index);
+      if (now >= nextLineAt) {
+        if (edges.length < MAX_EDGES) addLine(now);
+        nextLineAt = now + 75 + random() * 75;
+      }
+    }
+    function project(point) {
+      const x = point.x * Math.cos(yaw) + point.z * Math.sin(yaw);
+      const depth = -point.x * Math.sin(yaw) + point.z * Math.cos(yaw);
+      const y = point.y * Math.cos(pitch) - depth * Math.sin(pitch);
+      const z = point.y * Math.sin(pitch) + depth * Math.cos(pitch);
+      const zoom = CAMERA / (CAMERA - z);
+      return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom, depth: z };
+    }
+    function drawLine(a, b) {
+      const start = project(a), end = project(b);
+      const depth = (start.depth + end.depth) * 0.5;
+      ctx.globalAlpha = 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
+      ctx.lineWidth = (start.zoom + end.zoom) * 0.9;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+    function onSegment(edge, point) {
+      return AXES.every((axis) => axis === edge.axis ? between(point[axis], edge.a[axis], edge.b[axis]) : Math.abs(point[axis] - edge.a[axis]) < 0.0001);
+    }
+    function crossing(a, b) {
+      if (a.axis === b.axis) return null;
+      const fixed = AXES.find((axis) => axis !== a.axis && axis !== b.axis);
+      if (Math.abs(a.a[fixed] - b.a[fixed]) > 0.0001) return null;
+      const point = { [a.axis]: b.a[a.axis], [b.axis]: a.a[b.axis], [fixed]: a.a[fixed] };
+      return onSegment(a, point) && onSegment(b, point) ? point : null;
+    }
+    function addDot(dots, point) {
+      const id = pointKey({ x: point.x.toFixed(3), y: point.y.toFixed(3), z: point.z.toFixed(3) });
+      dots.set(id, point);
+    }
+    function drawDots(lines) {
+      const dots = new Map();
+      addDot(dots, origin);
+      for (const node of nodes.values()) if (node.degree > 1) addDot(dots, node);
+      for (let i = 0; i < lines.length; i += 1) for (let j = i + 1; j < lines.length; j += 1) {
+        const point = crossing(lines[i], lines[j]);
+        if (point) addDot(dots, point);
+      }
+      for (const point of dots.values()) {
+        const p = project(point);
+        ctx.globalAlpha = 0.28 + clamp((p.depth + 1.75) / 3.5, 0, 1) * 0.72;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    function render(now) {
+      update(now);
+      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.strokeStyle = "#fff";
+      ctx.fillStyle = "#fff";
+      ctx.lineCap = "square";
+      const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
+      lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
+      for (const line of lines) drawLine(line.a, line.b);
+      drawDots(lines);
+      requestAnimationFrame(render);
+    }
+    canvas.addEventListener("pointerdown", (event) => {
+      dragPoint = { x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (!dragPoint) return;
+      yaw += (event.clientX - dragPoint.x) * 0.008;
+      pitch = clamp(pitch + (event.clientY - dragPoint.y) * 0.008, -1.15, 1.15);
+      dragPoint = { x: event.clientX, y: event.clientY };
+    });
+    ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; }));
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
