@@ -21,11 +21,11 @@
     const ROOT = { min: { x: -1.18, y: -0.66, z: -0.76 }, max: { x: 1.18, y: 0.66, z: 0.76 } };
     const AXES = ["x", "y", "z"];
     const EDGE_INDEXES = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]];
-    const MOVE_MS = 650, MIN_LEAVES = 8, MAX_LEAVES = 38, CAMERA = 4.2, SCALE = 530;
+    const MOVE_MS = 420, MIN_LEAVES = 8, MAX_LEAVES = 38, CAMERA = 4.2, SCALE = 610;
     const startedAt = performance.now();
     const random = randomFor(Date.now());
     const nodeFor = (box) => ({ box, cut: null, a: null, b: null, lockUntil: 0 });
-    let tree = nodeFor(ROOT), action = null, nextActionAt = startedAt + 420;
+    let tree = nodeFor(ROOT), action = null, nextActionAt = startedAt + 200;
     let yaw = -0.68, pitch = 0.32, dragPoint = null, lastAxis = -1;
     const openingAxes = ["x", "y", "z"];
 
@@ -146,7 +146,7 @@
         if (action.mode === "in") action.node.cut.direction = 0;
         else Object.assign(action.node, { cut: null, a: null, b: null });
         action = null;
-        nextActionAt = now + 80 + random() * 160;
+        nextActionAt = now + 55 + random() * 110;
       }
       if (!action && now >= nextActionAt && !startChange(now)) nextActionAt = now + 180;
     }
