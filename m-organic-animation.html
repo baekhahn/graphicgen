@@ -34,7 +34,6 @@
     function pointKey(point) { return `${point.x}|${point.y}|${point.z}`; }
     const edgeKey = (a, b) => a.id < b.id ? `${a.id}/${b.id}` : `${b.id}/${a.id}`;
     const samePlane = (a, b, axis) => AXES.every((key) => key === axis || a[key] === b[key]);
-    const between = (value, a, b) => value >= Math.min(a, b) - 0.0001 && value <= Math.max(a, b) + 0.0001;
     function randomFor(seed) {
       let state = seed >>> 0;
       return () => {
@@ -60,11 +59,20 @@
       }
       return [...connected];
     }
+    function axesAt(node) {
+      const axes = new Set();
+      for (const edge of edges) if (edge.a === node || edge.b === node) axes.add(edge.axis);
+      return axes;
+    }
+    function nodeWeight(node) {
+      const axes = axesAt(node);
+      return (axes.size === 2 ? 3.2 : axes.size === 1 ? 1.1 : 0.2) / (1 + Math.hypot(node.x, node.y, node.z));
+    }
     function pickStart() {
       const choices = rootNodes();
-      let threshold = random() * choices.reduce((sum, node) => sum + 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26)), 0);
+      let threshold = random() * choices.reduce((sum, node) => sum + nodeWeight(node), 0);
       for (const node of choices) {
-        threshold -= 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26));
+        threshold -= nodeWeight(node);
         if (threshold <= 0) return node;
       }
       return origin;
@@ -72,8 +80,11 @@
     function chooseAxis(start, forced) {
       if (forced) return forced;
       const choices = AXES.filter((axis) => LEVELS[axis].some((value) => value !== start[axis]));
-      const different = choices.filter((axis) => axis !== AXES[lastAxis]);
-      const axis = (different.length ? different : choices)[Math.floor(random() * (different.length ? different.length : choices.length))];
+      const options = choices.filter((axis) => !axesAt(start).has(axis));
+      const available = options.length ? options : choices;
+      const different = available.filter((axis) => axis !== AXES[lastAxis]);
+      const pool = different.length ? different : available;
+      const axis = pool[Math.floor(random() * pool.length)];
       lastAxis = AXES.indexOf(axis);
       return axis;
     }
@@ -153,33 +164,18 @@
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
     }
-    function onSegment(edge, point) {
-      return AXES.every((axis) => axis === edge.axis ? between(point[axis], edge.a[axis], edge.b[axis]) : Math.abs(point[axis] - edge.a[axis]) < 0.0001);
-    }
-    function crossing(a, b) {
-      if (a.axis === b.axis) return null;
-      const fixed = AXES.find((axis) => axis !== a.axis && axis !== b.axis);
-      if (Math.abs(a.a[fixed] - b.a[fixed]) > 0.0001) return null;
-      const point = { [a.axis]: b.a[a.axis], [b.axis]: a.a[b.axis], [fixed]: a.a[fixed] };
-      return onSegment(a, point) && onSegment(b, point) ? point : null;
-    }
     function addDot(dots, point) {
       const id = pointKey({ x: point.x.toFixed(3), y: point.y.toFixed(3), z: point.z.toFixed(3) });
       dots.set(id, point);
     }
-    function drawDots(lines) {
+    function drawDots() {
       const dots = new Map();
-      addDot(dots, origin);
-      for (const node of nodes.values()) if (node.degree > 1) addDot(dots, node);
-      for (let i = 0; i < lines.length; i += 1) for (let j = i + 1; j < lines.length; j += 1) {
-        const point = crossing(lines[i], lines[j]);
-        if (point) addDot(dots, point);
-      }
+      for (const node of nodes.values()) if (axesAt(node).size === 3) addDot(dots, node);
       for (const point of dots.values()) {
         const p = project(point);
         ctx.globalAlpha = 0.28 + clamp((p.depth + 1.75) / 3.5, 0, 1) * 0.72;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2.45, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 4.9, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -191,7 +187,7 @@
       const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
       lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
       for (const line of lines) drawLine(line.a, line.b);
-      drawDots(lines);
+      drawDots();
       requestAnimationFrame(render);
     }
     canvas.addEventListener("pointerdown", (event) => {
