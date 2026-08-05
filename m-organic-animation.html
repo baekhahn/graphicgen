@@ -168,9 +168,10 @@
       const id = pointKey({ x: point.x.toFixed(3), y: point.y.toFixed(3), z: point.z.toFixed(3) });
       dots.set(id, point);
     }
-    function drawDots() {
+    function drawDots(lines) {
       const dots = new Map();
-      for (const node of nodes.values()) if (axesAt(node).size === 3) addDot(dots, node);
+      for (const node of nodes.values()) if (node.degree === 1 || axesAt(node).size === 3) addDot(dots, node);
+      for (const line of lines) addDot(dots, line.b);
       for (const point of dots.values()) {
         const p = project(point);
         ctx.globalAlpha = 0.28 + clamp((p.depth + 1.75) / 3.5, 0, 1) * 0.72;
@@ -187,7 +188,7 @@
       const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
       lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
       for (const line of lines) drawLine(line.a, line.b);
-      drawDots();
+      drawDots(lines);
       requestAnimationFrame(render);
     }
     canvas.addEventListener("pointerdown", (event) => {
