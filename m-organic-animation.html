@@ -143,10 +143,10 @@
       const zoom = CAMERA / (CAMERA - z);
       return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom, depth: z };
     }
-    function drawLine(a, b, opacity) {
+    function drawLine(a, b) {
       const start = project(a), end = project(b);
       const depth = (start.depth + end.depth) * 0.5;
-      ctx.globalAlpha = opacity ?? 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
+      ctx.globalAlpha = 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
       ctx.lineWidth = (start.zoom + end.zoom) * 0.9;
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
@@ -185,13 +185,7 @@
     }
     function render(now) {
       update(now);
-      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT); ctx.strokeStyle = "#9a9a9a";
-      for (let x = -2.4; x <= 2.4; x += 0.4) drawLine({ x, y: 0.9, z: -1.8 }, { x, y: 0.9, z: 1.8 }, 0.65);
-      for (let z = -1.8; z <= 1.8; z += 0.4) drawLine({ x: -2.4, y: 0.9, z }, { x: 2.4, y: 0.9, z }, 0.65);
-      for (const x of [-1.55, 1.55]) {
-        for (let y = -1.2; y <= 1.2; y += 0.4) drawLine({ x, y, z: -1.8 }, { x, y, z: 1.8 }, 0.65);
-        for (let z = -1.8; z <= 1.8; z += 0.4) drawLine({ x, y: -1.2, z }, { x, y: 1.2, z }, 0.65);
-      }
+      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "#fff"; ctx.fillStyle = "#fff";
       ctx.lineCap = "square";
       const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
