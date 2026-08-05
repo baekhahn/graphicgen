@@ -26,7 +26,7 @@
     const GROW_MIN = 55, GROW_MAX = 560, MAX_EDGES = 78, CAMERA = 4.2, SCALE = 610;
     const startedAt = performance.now(), random = randomFor(Date.now());
     const nodes = new Map(), edges = [], edgeKeys = new Set(), origin = nodeAt({ x: 0, y: 0, z: 0 });
-    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90, yaw = -0.72, pitch = 0.28, dragPoint = null, manualOrbit = false;
+    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90, yaw = -0.72, pitch = 0.28, dragPoint = null, manualOrbit = false, orbitYaw = yaw, orbitPitch = pitch, orbitAt = startedAt;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const lerp = (a, b, t) => a + (b - a) * t;
     const pointLerp = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: lerp(a.z, b.z, t) });
@@ -70,6 +70,8 @@
     }
     function pickStart() {
       const choices = rootNodes().filter((node) => axesAt(node).size < 3);
+      const corners = choices.filter((node) => axesAt(node).size === 2);
+      if (corners.length) return corners[Math.floor(random() * corners.length)];
       let threshold = random() * choices.reduce((sum, node) => sum + nodeWeight(node), 0);
       for (const node of choices) {
         threshold -= nodeWeight(node);
@@ -169,7 +171,7 @@
     }
     function drawDots(lines) {
       const dots = new Map(), junctions = new Map();
-      for (const line of lines) if (line.settled) for (const node of [line.a, line.end]) { const axes = junctions.get(node) || new Set(); axes.add(line.axis); junctions.set(node, axes); }
+      for (const line of lines) if (line.visible) for (const node of [line.a, line.end]) if (node !== line.end || line.settled) { const axes = junctions.get(node) || new Set(); axes.add(line.axis); junctions.set(node, axes); }
       for (const [node, axes] of junctions) if (axes.size === 3) addDot(dots, node);
       for (const point of dots.values()) {
         const p = project(point);
@@ -181,27 +183,27 @@
     }
     function render(now) {
       update(now);
-      if (!manualOrbit) { yaw = -0.72 + (now - startedAt) * 0.00022; pitch = 0.28; }
+      if (!manualOrbit) { yaw = orbitYaw + (now - orbitAt) * 0.00022; pitch = orbitPitch; }
       ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "#fff"; ctx.fillStyle = "#fff";
       ctx.lineCap = "square";
-      const lines = edges.map((edge) => { const progress = amount(edge, now); return { a: edge.a, b: pointLerp(edge.a, edge.b, progress), end: edge.b, axis: edge.axis, settled: progress === 1 }; });
+      const lines = edges.map((edge) => { const progress = amount(edge, now); return { a: edge.a, b: pointLerp(edge.a, edge.b, progress), end: edge.b, axis: edge.axis, settled: progress === 1, visible: progress > 0 }; });
       lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
       for (const line of lines) drawLine(line.a, line.b);
       drawDots(lines);
       requestAnimationFrame(render);
     }
     canvas.addEventListener("pointerdown", (event) => {
-      dragPoint = { x: event.clientX, y: event.clientY };
+      dragPoint = { x: event.clientX, y: event.clientY }; manualOrbit = true;
       canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener("pointermove", (event) => {
       if (!dragPoint) return;
-      manualOrbit = true; yaw += (event.clientX - dragPoint.x) * 0.008;
+      yaw += (event.clientX - dragPoint.x) * 0.008;
       pitch = clamp(pitch + (event.clientY - dragPoint.y) * 0.008, -1.15, 1.15);
       dragPoint = { x: event.clientX, y: event.clientY };
     });
-    ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; }));
+    ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; orbitYaw = yaw; orbitPitch = pitch; orbitAt = performance.now(); manualOrbit = false; }));
     requestAnimationFrame(render);
   </script>
 </body>
