@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Volumetric Split</title>
+  <title>Emergent XYZ</title>
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
@@ -12,30 +12,32 @@
   </style>
 </head>
 <body>
-  <canvas id="stage" width="1600" height="800" aria-label="XYZ 축으로 공간을 연속 분할하고 마우스로 회전하는 3차원 애니메이션"></canvas>
-
+  <canvas id="stage" width="1600" height="800" aria-label="중심점에서 XYZ 축을 따라 선이 자라며 교차점에 점이 생기는 3차원 애니메이션"></canvas>
   <script>
     const canvas = document.getElementById("stage");
     const ctx = canvas.getContext("2d");
     const WIDTH = canvas.width, HEIGHT = canvas.height;
-    const ROOT = { min: { x: -1.18, y: -0.66, z: -0.76 }, max: { x: 1.18, y: 0.66, z: 0.76 } };
     const AXES = ["x", "y", "z"];
-    const EDGE_INDEXES = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]];
-    const MOVE_MS = 420, MIN_LEAVES = 8, MAX_LEAVES = 38, CAMERA = 4.2, SCALE = 610;
+    const LEVELS = {
+      x: [-1.28, -0.94, -0.58, -0.22, 0, 0.31, 0.69, 1.04, 1.30],
+      y: [-0.68, -0.47, -0.24, 0, 0.25, 0.49, 0.69],
+      z: [-1.02, -0.69, -0.33, 0, 0.29, 0.66, 1.01]
+    };
+    const GROW_MIN = 55, GROW_MAX = 560, MAX_EDGES = 78, CAMERA = 4.2, SCALE = 610;
     const startedAt = performance.now();
     const random = randomFor(Date.now());
-    const nodeFor = (box) => ({ box, cut: null, a: null, b: null, lockUntil: 0 });
-    let tree = nodeFor(ROOT), action = null, nextActionAt = startedAt + 200;
-    let yaw = -0.68, pitch = 0.32, dragPoint = null, lastAxis = -1;
-    const openingAxes = ["x", "y", "z"];
-
+    const nodes = new Map(), edges = [], edgeKeys = new Set();
+    const origin = nodeAt({ x: 0, y: 0, z: 0 });
+    let openingAxis = 0, lastAxis = -1, nextLineAt = startedAt + 90;
+    let yaw = -0.72, pitch = 0.28, dragPoint = null;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const lerp = (a, b, t) => a + (b - a) * t;
     const pointLerp = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: lerp(a.z, b.z, t) });
-    const midpoint = (a, b) => pointLerp(a, b, 0.5);
-    const smoothstep = (start, end, value) => { const t = clamp((value - start) / (end - start), 0, 1); return t * t * (3 - 2 * t); };
-    const easeOut = (value) => 1 - (1 - clamp(value, 0, 1)) ** 3;
-
+    const easeOut = (value, curve = 3) => 1 - (1 - clamp(value, 0, 1)) ** curve;
+    function pointKey(point) { return `${point.x}|${point.y}|${point.z}`; }
+    const edgeKey = (a, b) => a.id < b.id ? `${a.id}/${b.id}` : `${b.id}/${a.id}`;
+    const samePlane = (a, b, axis) => AXES.every((key) => key === axis || a[key] === b[key]);
+    const between = (value, a, b) => value >= Math.min(a, b) - 0.0001 && value <= Math.max(a, b) + 0.0001;
     function randomFor(seed) {
       let state = seed >>> 0;
       return () => {
@@ -46,161 +48,158 @@
         return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
       };
     }
-
-    function boxVolume(box) {
-      return (box.max.x - box.min.x) * (box.max.y - box.min.y) * (box.max.z - box.min.z);
+    function nodeAt(point) {
+      const id = pointKey(point);
+      if (!nodes.has(id)) nodes.set(id, { ...point, id, degree: 0 });
+      return nodes.get(id);
     }
-
-    function boxCorners(box) {
-      const { min, max } = box;
-      return [
-        { x: min.x, y: min.y, z: min.z }, { x: max.x, y: min.y, z: min.z },
-        { x: min.x, y: max.y, z: min.z }, { x: max.x, y: max.y, z: min.z },
-        { x: min.x, y: min.y, z: max.z }, { x: max.x, y: min.y, z: max.z },
-        { x: min.x, y: max.y, z: max.z }, { x: max.x, y: max.y, z: max.z }
-      ];
+    function rootNodes() {
+      const connected = new Set([origin]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const edge of edges) if (connected.has(edge.a) !== connected.has(edge.b)) {
+          connected.add(connected.has(edge.a) ? edge.b : edge.a); changed = true;
+        }
+      }
+      return [...connected];
     }
-
-    function planeCorners(box, axis, value) {
-      const { min, max } = box;
-      if (axis === "x") return [{ x: value, y: min.y, z: min.z }, { x: value, y: max.y, z: min.z }, { x: value, y: max.y, z: max.z }, { x: value, y: min.y, z: max.z }];
-      if (axis === "y") return [{ x: min.x, y: value, z: min.z }, { x: max.x, y: value, z: min.z }, { x: max.x, y: value, z: max.z }, { x: min.x, y: value, z: max.z }];
-      return [{ x: min.x, y: min.y, z: value }, { x: max.x, y: min.y, z: value }, { x: max.x, y: max.y, z: value }, { x: min.x, y: max.y, z: value }];
-    }
-
-    function splitBox(box, axis, value) {
-      const lower = { min: { ...box.min }, max: { ...box.max } }, upper = { min: { ...box.min }, max: { ...box.max } };
-      lower.max[axis] = value;
-      upper.min[axis] = value;
-      return [lower, upper];
-    }
-
-    function leaves(node, output = []) {
-      if (!node.cut) output.push(node);
-      else { leaves(node.a, output); leaves(node.b, output); }
-      return output;
-    }
-
-    function cherries(node, output = []) {
-      if (!node.cut) return output;
-      if (!node.a.cut && !node.b.cut) output.push(node);
-      else { cherries(node.a, output); cherries(node.b, output); }
-      return output;
-    }
-
-    function pickByVolume(nodes) {
-      let threshold = random() * nodes.reduce((sum, node) => sum + boxVolume(node.box) ** 0.72, 0);
-      for (const node of nodes) {
-        threshold -= boxVolume(node.box) ** 0.72;
+    function pickStart() {
+      const choices = rootNodes();
+      let threshold = random() * choices.reduce((sum, node) => sum + 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26)), 0);
+      for (const node of choices) {
+        threshold -= 1 / ((1 + Math.hypot(node.x, node.y, node.z)) * (1 + node.degree * 0.26));
         if (threshold <= 0) return node;
       }
-      return nodes[nodes.length - 1];
+      return origin;
     }
-
-    function chooseAxis(node) {
-      const viable = AXES.filter((axis) => node.box.max[axis] - node.box.min[axis] > 0.10);
-      const opening = openingAxes[0];
-      if (viable.includes(opening)) {
-        openingAxes.shift();
-        lastAxis = AXES.indexOf(opening);
-        return opening;
-      }
-      const different = viable.filter((axis) => axis !== AXES[lastAxis]);
-      const choices = different.length ? different : viable;
-      const axis = choices[Math.floor(random() * choices.length)];
+    function chooseAxis(start, forced) {
+      if (forced) return forced;
+      const choices = AXES.filter((axis) => LEVELS[axis].some((value) => value !== start[axis]));
+      const different = choices.filter((axis) => axis !== AXES[lastAxis]);
+      const axis = (different.length ? different : choices)[Math.floor(random() * (different.length ? different.length : choices.length))];
       lastAxis = AXES.indexOf(axis);
       return axis;
     }
-
-    function startSplit(node, now) {
-      const axis = chooseAxis(node);
-      if (!axis) return false;
-      const value = lerp(node.box.min[axis], node.box.max[axis], 0.30 + random() * 0.40);
-      const [lower, upper] = splitBox(node.box, axis, value);
-      node.a = nodeFor(lower);
-      node.b = nodeFor(upper);
-      node.cut = { corners: planeCorners(node.box, axis, value), direction: 1, started: now };
-      node.lockUntil = now + 2_500;
-      action = { node, mode: "in", started: now };
-      return true;
+    function overlaps(a, b, axis) {
+      const low = Math.min(a[axis], b[axis]), high = Math.max(a[axis], b[axis]);
+      return edges.some((edge) => edge.axis === axis && samePlane(a, edge.a, axis) && Math.max(low, Math.min(edge.a[axis], edge.b[axis])) < Math.min(high, Math.max(edge.a[axis], edge.b[axis])) - 0.0001);
     }
-
-    function startMerge(node, now) {
-      node.cut.direction = -1;
-      node.cut.started = now;
-      action = { node, mode: "out", started: now };
+    function endpointFor(a, axis) {
+      const peers = [...nodes.values()].filter((node) => node !== a && samePlane(a, node, axis) && !edgeKeys.has(edgeKey(a, node)) && !overlaps(a, node, axis));
+      if (peers.length && random() < 0.46) return peers[Math.floor(random() * peers.length)];
+      const direction = a[axis] === 0 ? (random() < 0.5 ? -1 : 1) : (random() < 0.76 ? Math.sign(a[axis]) : -Math.sign(a[axis]));
+      const values = LEVELS[axis].filter((value) => value !== a[axis]);
+      const outward = values.filter((value) => (value - a[axis]) * direction > 0);
+      const nearby = (outward.length ? outward : values).filter((value) => Math.abs(value - a[axis]) <= 0.76);
+      const value = (nearby.length ? nearby : (outward.length ? outward : values))[Math.floor(random() * (nearby.length || outward.length || values.length))];
+      return nodeAt({ ...a, [axis]: value });
     }
-
-    function startChange(now) {
-      const leafNodes = leaves(tree), cutNodes = cherries(tree);
-      const shouldSplit = leafNodes.length < MIN_LEAVES || (leafNodes.length < MAX_LEAVES && (!cutNodes.length || random() < 0.57));
-      if (shouldSplit && startSplit(pickByVolume(leafNodes), now)) return true;
-      const cooled = cutNodes.filter((node) => node.lockUntil <= now);
-      if (!cooled.length) return false;
-      startMerge(pickByVolume(cooled), now);
-      return true;
-    }
-
-    function tick(now) {
-      if (action && now - action.started >= MOVE_MS) {
-        if (action.mode === "in") action.node.cut.direction = 0;
-        else Object.assign(action.node, { cut: null, a: null, b: null });
-        action = null;
-        nextActionAt = now + 55 + random() * 110;
+    function addLine(now) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const forced = openingAxis < AXES.length ? AXES[openingAxis] : null;
+        const a = forced ? origin : pickStart();
+        const axis = chooseAxis(a, forced);
+        const b = endpointFor(a, axis);
+        const id = edgeKey(a, b);
+        if (a === b || edgeKeys.has(id) || overlaps(a, b, axis)) continue;
+        const anchored = a === origin;
+        const edge = {
+          a, b, axis, id, born: now, grow: GROW_MIN + random() ** 2 * (GROW_MAX - GROW_MIN), curve: 1.6 + random() * 4.4,
+          hold: (anchored ? 10_500 : 7_400) + random() * (anchored ? 4_500 : 5_800),
+          shrink: 600 + random() * 900
+        };
+        edges.push(edge);
+        edgeKeys.add(id);
+        a.degree += 1;
+        b.degree += 1;
+        if (forced) openingAxis += 1;
+        return true;
       }
-      if (!action && now >= nextActionAt && !startChange(now)) nextActionAt = now + 180;
+      return false;
     }
-
+    function amount(edge, now) {
+      const age = now - edge.born;
+      if (age < edge.grow) return easeOut(age / edge.grow, edge.curve);
+      if (age < edge.grow + edge.hold) return 1;
+      return clamp(1 - ((age - edge.grow - edge.hold) / edge.shrink) ** 2, 0, 1);
+    }
+    function removeEdge(edge, index) {
+      edgeKeys.delete(edge.id);
+      edge.a.degree -= 1;
+      edge.b.degree -= 1;
+      if (edge.a !== origin && edge.a.degree === 0) nodes.delete(edge.a.id);
+      if (edge.b !== origin && edge.b.degree === 0) nodes.delete(edge.b.id);
+      edges.splice(index, 1);
+    }
+    function update(now) {
+      for (let index = edges.length - 1; index >= 0; index -= 1) if (amount(edges[index], now) <= 0) removeEdge(edges[index], index);
+      if (now >= nextLineAt) {
+        if (edges.length < MAX_EDGES) addLine(now);
+        nextLineAt = now + 75 + random() * 75;
+      }
+    }
     function project(point) {
       const x = point.x * Math.cos(yaw) + point.z * Math.sin(yaw);
       const depth = -point.x * Math.sin(yaw) + point.z * Math.cos(yaw);
       const y = point.y * Math.cos(pitch) - depth * Math.sin(pitch);
       const z = point.y * Math.sin(pitch) + depth * Math.cos(pitch);
       const zoom = CAMERA / (CAMERA - z);
-      return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom };
+      return { x: WIDTH / 2 + x * SCALE * zoom, y: HEIGHT / 2 + y * SCALE * zoom, zoom, depth: z };
     }
-
-    function drawLine(a, b, opacity) {
+    function drawLine(a, b) {
       const start = project(a), end = project(b);
-      ctx.globalAlpha = opacity;
+      const depth = (start.depth + end.depth) * 0.5;
+      ctx.globalAlpha = 0.22 + clamp((depth + 1.75) / 3.5, 0, 1) * 0.78;
       ctx.lineWidth = (start.zoom + end.zoom) * 0.9;
       ctx.beginPath();
       ctx.moveTo(start.x, start.y);
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
     }
-
-    function drawPlane(corners, progress, opacity) {
-      for (let i = 0; i < 4; i += 1) {
-        const a = corners[i], b = corners[(i + 1) % 4], center = midpoint(a, b), growth = easeOut(progress);
-        drawLine(center, pointLerp(center, a, growth), opacity);
-        drawLine(center, pointLerp(center, b, growth), opacity);
+    function onSegment(edge, point) {
+      return AXES.every((axis) => axis === edge.axis ? between(point[axis], edge.a[axis], edge.b[axis]) : Math.abs(point[axis] - edge.a[axis]) < 0.0001);
+    }
+    function crossing(a, b) {
+      if (a.axis === b.axis) return null;
+      const fixed = AXES.find((axis) => axis !== a.axis && axis !== b.axis);
+      if (Math.abs(a.a[fixed] - b.a[fixed]) > 0.0001) return null;
+      const point = { [a.axis]: b.a[a.axis], [b.axis]: a.a[b.axis], [fixed]: a.a[fixed] };
+      return onSegment(a, point) && onSegment(b, point) ? point : null;
+    }
+    function addDot(dots, point) {
+      const id = pointKey({ x: point.x.toFixed(3), y: point.y.toFixed(3), z: point.z.toFixed(3) });
+      dots.set(id, point);
+    }
+    function drawDots(lines) {
+      const dots = new Map();
+      addDot(dots, origin);
+      for (const node of nodes.values()) if (node.degree > 1) addDot(dots, node);
+      for (let i = 0; i < lines.length; i += 1) for (let j = i + 1; j < lines.length; j += 1) {
+        const point = crossing(lines[i], lines[j]);
+        if (point) addDot(dots, point);
+      }
+      for (const point of dots.values()) {
+        const p = project(point);
+        ctx.globalAlpha = 0.28 + clamp((p.depth + 1.75) / 3.5, 0, 1) * 0.72;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.45, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
-
-    function collectCuts(node, now, output = []) {
-      if (!node.cut) return output;
-      const ratio = clamp((now - node.cut.started) / MOVE_MS, 0, 1);
-      const progress = node.cut.direction === 1 ? easeOut(ratio) : node.cut.direction === -1 ? 1 - easeOut(ratio) : 1;
-      output.push({ corners: node.cut.corners, progress, opacity: node.cut.direction === -1 ? progress : 1 });
-      collectCuts(node.a, now, output);
-      collectCuts(node.b, now, output);
-      return output;
-    }
-
     function render(now) {
-      tick(now);
+      update(now);
       ctx.globalAlpha = 1;
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "#fff";
+      ctx.fillStyle = "#fff";
       ctx.lineCap = "square";
-      const corners = boxCorners(ROOT);
-      for (const [from, to] of EDGE_INDEXES) drawLine(corners[from], corners[to], 0.82);
-      for (const cut of collectCuts(tree, now)) drawPlane(cut.corners, cut.progress, cut.opacity);
+      const lines = edges.map((edge) => ({ a: edge.a, b: pointLerp(edge.a, edge.b, amount(edge, now)), axis: edge.axis }));
+      lines.sort((a, b) => project(a.b).depth - project(b.b).depth);
+      for (const line of lines) drawLine(line.a, line.b);
+      drawDots(lines);
       requestAnimationFrame(render);
     }
-
     canvas.addEventListener("pointerdown", (event) => {
       dragPoint = { x: event.clientX, y: event.clientY };
       canvas.setPointerCapture(event.pointerId);
