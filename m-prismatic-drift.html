@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prismatic Drift</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+    body { display: grid; place-items: center; }
+    canvas { display: block; width: min(100vw, 200svh); height: auto; cursor: grab; touch-action: none; background: #000; }
+  </style>
+</head>
+<body>
+  <canvas id="stage" width="1600" height="800" aria-label="프리즘 잔상을 남기는 3차원 선 구조 애니메이션"></canvas>
+  <script>
+    const canvas = document.getElementById("stage"), ctx = canvas.getContext("2d");
+    const WIDTH = canvas.width, HEIGHT = canvas.height, COLORS = ["#ff355d", "#08dfff", "#a2ff34"];
+    const random = randomFor(Date.now()), startedAt = performance.now(), hubs = [], rays = [];
+    let yaw = -0.62, pitch = 0.16, dragPoint = null, manual = false, orbitYaw = yaw, orbitPitch = pitch, orbitAt = startedAt;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    function randomFor(seed) {
+      let state = seed >>> 0;
+      return () => { state += 0x6D2B79F5; let value = state; value = Math.imul(value ^ value >>> 15, value | 1); value ^= value + Math.imul(value ^ value >>> 7, value | 61); return ((value ^ value >>> 14) >>> 0) / 4_294_967_296; };
+    }
+    function point(x, y, z) { return { x, y, z, drift: random() * Math.PI * 2, speed: 0.45 + random() * 0.9 }; }
+    function axisPoint(origin, axis) {
+      const sign = random() < 0.5 ? -1 : 1, length = 0.24 + random() * 0.8;
+      return point(axis === "x" ? clamp(origin.x + sign * length, -1.5, 1.5) : origin.x, axis === "y" ? clamp(origin.y + sign * length, -0.9, 0.9) : origin.y, axis === "z" ? clamp(origin.z + sign * length, -1.3, 1.3) : origin.z);
+    }
+    for (let index = 0; index < 56; index += 1) {
+      const hub = point((random() * 2 - 1) * 1.32, (random() * 2 - 1) * 0.7, (random() * 2 - 1) * 1.08);
+      hubs.push(hub);
+      ["x", "y", "z"].sort(() => random() - 0.5).forEach((axis) => rays.push({ a: hub, b: axisPoint(hub, axis), seed: random() * 50, width: 0.6 + random() * 0.8 }));
+    }
+    function world(node, now) {
+      const wave = now * 0.00017 * node.speed + node.drift;
+      return { x: node.x + Math.sin(wave) * 0.035, y: node.y + Math.cos(wave * 1.31) * 0.028, z: node.z + Math.sin(wave * 0.73) * 0.04 };
+    }
+    function project(point) {
+      const x = point.x * Math.cos(yaw) + point.z * Math.sin(yaw);
+      const depth = -point.x * Math.sin(yaw) + point.z * Math.cos(yaw);
+      const y = point.y * Math.cos(pitch) - depth * Math.sin(pitch);
+      const z = point.y * Math.sin(pitch) + depth * Math.cos(pitch);
+      const zoom = 4.15 / (4.15 - z);
+      return { x: WIDTH / 2 + x * 555 * zoom, y: HEIGHT / 2 + y * 555 * zoom, depth: z, zoom };
+    }
+    function stroke(a, b, color, alpha, width, offset = 0) {
+      ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(a.x + offset, a.y - offset); ctx.lineTo(b.x + offset, b.y - offset); ctx.stroke();
+    }
+    function fragment(a, b, ray, now, depth) {
+      const flicker = 0.5 + 0.5 * Math.sin(now * 0.0042 + ray.seed), start = (now * 0.00009 + ray.seed * 0.071) % 0.92;
+      if (flicker < 0.32) return;
+      const end = Math.min(1, start + 0.055 + flicker * 0.16), from = { x: lerp(a.x, b.x, start), y: lerp(a.y, b.y, start) }, to = { x: lerp(a.x, b.x, end), y: lerp(a.y, b.y, end) };
+      ctx.globalCompositeOperation = "screen"; ctx.shadowBlur = 7 * flicker;
+      COLORS.forEach((color, index) => { ctx.shadowColor = color; stroke(from, to, color, (0.2 + flicker * 0.56) * depth, ray.width * 1.35, (index - 1) * (1.4 + flicker * 2.6)); });
+      ctx.shadowBlur = 0; ctx.globalCompositeOperation = "source-over";
+    }
+    function drawRay(ray, now) {
+      const a = project(world(ray.a, now)), b = project(world(ray.b, now)), depth = 0.18 + clamp((a.depth + b.depth + 2.1) / 4.1, 0, 1) * 0.58;
+      stroke(a, b, "#d9e0e5", depth * 0.54, ray.width * (a.zoom + b.zoom) * 0.5);
+      COLORS.forEach((color, index) => stroke(a, b, color, depth * 0.055, ray.width * 0.46, (index - 1) * 1.05));
+      fragment(a, b, ray, now, depth);
+      if (Math.sin(now * 0.0021 + ray.seed * 1.7) > 0.92) stroke(a, b, "#fff", depth * 0.2, ray.width * 0.38);
+    }
+    function drawHub(hub, now) {
+      const p = project(world(hub, now)), glow = 0.5 + 0.5 * Math.sin(now * 0.004 + hub.drift), depth = 0.44 + clamp((p.depth + 2) / 4, 0, 1) * 0.56;
+      ctx.globalCompositeOperation = "screen"; ctx.shadowBlur = 10 * glow;
+      COLORS.forEach((color, index) => { ctx.fillStyle = color; ctx.shadowColor = color; ctx.globalAlpha = depth * 0.38; ctx.beginPath(); ctx.arc(p.x + (index - 1) * 2.1, p.y + (1 - index) * 1.3, 1.8 + glow, 0, Math.PI * 2); ctx.fill(); });
+      ctx.shadowBlur = 0; ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = "#fff"; ctx.globalAlpha = depth; ctx.beginPath(); ctx.arc(p.x, p.y, 2.25 + glow * 0.75, 0, Math.PI * 2); ctx.fill();
+    }
+    function render(now) {
+      if (!manual) { yaw = orbitYaw + (now - orbitAt) * 0.00016; pitch = orbitPitch; }
+      ctx.globalAlpha = 1; ctx.clearRect(0, 0, WIDTH, HEIGHT); ctx.lineCap = "square";
+      rays.slice().sort((a, b) => project(world(a.b, now)).depth - project(world(b.b, now)).depth).forEach((ray) => drawRay(ray, now));
+      hubs.slice().sort((a, b) => project(world(a, now)).depth - project(world(b, now)).depth).forEach((hub) => drawHub(hub, now));
+      requestAnimationFrame(render);
+    }
+    canvas.addEventListener("pointerdown", (event) => { dragPoint = { x: event.clientX, y: event.clientY }; manual = true; canvas.setPointerCapture(event.pointerId); });
+    canvas.addEventListener("pointermove", (event) => { if (!dragPoint) return; yaw += (event.clientX - dragPoint.x) * 0.008; pitch = clamp(pitch + (event.clientY - dragPoint.y) * 0.008, -1.12, 1.12); dragPoint = { x: event.clientX, y: event.clientY }; });
+    ["pointerup", "pointercancel"].forEach((type) => canvas.addEventListener(type, () => { dragPoint = null; orbitYaw = yaw; orbitPitch = pitch; orbitAt = performance.now(); manual = false; }));
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
